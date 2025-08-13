@@ -27,7 +27,7 @@ class CC_Config():
         compiler_opts ([str]): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
-        
+
     """
 
     def __init__(self):
@@ -36,8 +36,8 @@ class CC_Config():
         self.compier_opts = ["-fPIC", "-shared", "-xc"]
         self.__cache = None
         self.delete_on_exit = False
-        self.compiler='cc'
-        self.function=None
+        self.compiler = 'cc'
+        self.function = None
 
     @property
     def cache(self):
@@ -101,7 +101,7 @@ class CC_Builder(BaseBuilder):
 
         if not os.path.exists(self.so_file):
             try:
-                out = subprocess.run([self.config.compiler] + self.config.compier_opts+ [ "-o", self.so_file,  "-"],
+                out = subprocess.run([self.config.compiler] + self.config.compier_opts + ["-o", self.so_file,  "-"],
                                      text=True, capture_output=True,
                                      input=self.code, check=True)
             except subprocess.CalledProcessError as e:
@@ -123,7 +123,11 @@ class CC_Builder(BaseBuilder):
         fun_name = self.config.function if self.config.function else self.fun.__name__
         all_args = self.build_args(*args, **kwargs)
         logger.debug(f'Calling function: {fun_name} with args: {all_args}')
-        return getattr(self.main, fun_name)(*tuple(all_args))
+        fun = getattr(self.main, fun_name)
+        sig = inspect.signature(self.fun)
+        if sig.return_annotation != inspect._empty:
+            fun.restype = sig.return_annotation
+        return fun(*tuple(all_args))
 
     def build_args(self, *args, **kwargs):
         sig = inspect.signature(self.fun)

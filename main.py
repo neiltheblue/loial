@@ -1,4 +1,5 @@
 from loial import build
+from loial.builders.c_builder import CC_Config
 
 ############################
 ## Exercise: Python Builder
@@ -17,17 +18,20 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 ## Exercise: C Builder
 ############################
 
-# add to git
-# test c include files
-# test c include libs
-# add c compiler args
+# pass pointers or by ref
+# pass array
 # try passing in a byte pack as a struct
 
-@build('''
+config=CC_Config()
+config.delete_on_exit=True
+@build(r'''
+#include <math.h>
+#include <stdio.h>
 int my_c_fun(int a, int b) {
+    printf("sqrt(%d) = %f\n", a, sqrt(a));
 	return a * b;
 }
-''', code_type='CC', replace=True, builder_opts={'delete_on_exit':True})
+''', code_type='CC', replace=True, config=config)
 def my_c_fun(a,b):
     return a + b
 

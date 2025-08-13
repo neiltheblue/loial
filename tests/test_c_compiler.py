@@ -231,7 +231,22 @@ def test_build_replace_function_typed_args():
         return a*b*c
 
     assert typed(1, 2.0, c=3.0) == 6
+    
 
+def test_build_no_replace_function_typed_args():
+    @build(r'''
+    #include <stdio.h>
+    int typed(short a, float b, float c) {
+        
+        printf("sizes:%d %d %d\n", sizeof(a), sizeof(b), sizeof(c));
+        printf("values:%d %d %d\n", a, b, c);
+        return a + b + c;
+    }
+    ''', code_type='CC', replace=False)
+    def typed(a: ctypes.c_short, b: ctypes.c_float, c: ctypes.c_float, d: ctypes.c_float = 2.0):
+        return a*b*c*2
+
+    assert typed(1, 2.0, c=3.0) == 12
 
 def test_build_replace_compiler(mocker):
 
@@ -289,3 +304,28 @@ def test_build_replace_function_name(mocker):
 
     assert not_main(1, 2, 3) == 6
 
+
+def test_build_replace_function_return_type():
+    @build(r'''
+    #include <stdio.h>
+    float freturn(int a, int b, int c) {
+        return (a + b + c)/2.0;
+    }
+    ''', code_type='CC')
+    def freturn(a, b, c) -> ctypes.c_float:
+        return a*b*c
+
+    assert freturn(1, 2, 3) == 3.0
+    
+    
+def test_build_no_replace_function_return_type():
+    @build(r'''
+    #include <stdio.h>
+    float freturn(int a, int b, int c) {
+        return (a + b + c)/2.0;
+    }
+    ''', code_type='CC', replace=False)
+    def freturn(a, b, c) -> ctypes.c_float:
+        return a*b*c
+
+    assert freturn(1, 2, 3) == 6
