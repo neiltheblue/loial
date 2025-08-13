@@ -231,7 +231,7 @@ def test_build_replace_function_typed_args():
         return a*b*c
 
     assert typed(1, 2.0, c=3.0) == 6
-    
+
 
 def test_build_no_replace_function_typed_args():
     @build(r'''
@@ -247,6 +247,7 @@ def test_build_no_replace_function_typed_args():
         return a*b*c*2
 
     assert typed(1, 2.0, c=3.0) == 12
+
 
 def test_build_replace_compiler(mocker):
 
@@ -287,12 +288,12 @@ def test_build_replace_compiler_opts(mocker):
     assert comp(1, 2, 3) == 6
     spy.assert_called_once()
     assert spy.call_args_list[0].args[0][len(conf.compier_opts)] == '-time'
-    
-    
+
+
 def test_build_replace_function_name(mocker):
 
     conf = CC_Config()
-    conf.function='main'
+    conf.function = 'main'
 
     @build(r'''
     int main(int a, int b, int c) {
@@ -316,8 +317,8 @@ def test_build_replace_function_return_type():
         return a*b*c
 
     assert freturn(1, 2, 3) == 3.0
-    
-    
+
+
 def test_build_no_replace_function_return_type():
     @build(r'''
     #include <stdio.h>
@@ -329,3 +330,21 @@ def test_build_no_replace_function_return_type():
         return a*b*c
 
     assert freturn(1, 2, 3) == 6
+
+
+def test_build_replace_function_pass_args_byref():
+    
+    conf = CC_Config()
+    conf.refs = {'a'}
+    
+    @build(r'''
+    int ref(int* a, int b) {
+        return *a * b;
+    }
+    ''', code_type='CC', config=conf)
+    def ref(a: ctypes.c_int, b):
+        return a+b
+
+    a = 3
+    b = 10
+    assert ref(a, b) == 30

@@ -18,7 +18,7 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 ## Exercise: C Builder
 ############################
 
-# pass pointers or by ref
+# pass by pointer
 # pass array
 # try passing in a byte pack as a struct
 

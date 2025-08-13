@@ -16,10 +16,29 @@ logger = logging.getLogger(__name__)
 class CC_Config():
     """
     Configuration class for managing the cache directory used by C_Builder.
-    To case an argument to a specific c type, provide a hint in method signature:
+    To cast an argument to a specific c type, provide a hint in method signature:
 
-        def dun(a: ctypes.c_float, b: ctypes.c_float = 2.0):
+        def fun1(a: ctypes.c_float, b: ctypes.c_float = 2.0):
+        ...
+        
+    To pass an argument by ref is must be listed in config.refs and a type hint must be provided:
 
+        conf = CC_Config()
+        conf.refs = {'a'}
+        
+        @build(r'''
+        int ref(int* a, int b) {
+            ...
+        }
+        ''', code_type='CC', config=conf)
+        def ref(a: ctypes.c_int, b):
+        ...
+        
+    To define the function return type a hint should be applied in method signature:
+
+        def fun2(a, b) -> ctypes.c_float:        
+        ...
+        
     Attributes:
         cache_search_path (list): List of directory paths (as strings) to search for or create as the cache location.
         cache (Path or None): The resolved cache directory path, or None if not yet set.
@@ -27,7 +46,7 @@ class CC_Config():
         compiler_opts ([str]): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
-
+        refs ({str}): The parameter names to pass by reference, but the c type must also be set as a hint.
     """
 
     def __init__(self):
@@ -38,6 +57,7 @@ class CC_Config():
         self.delete_on_exit = False
         self.compiler = 'cc'
         self.function = None
+        self.refs={}
 
     @property
     def cache(self):
@@ -134,7 +154,6 @@ class CC_Builder(BaseBuilder):
         param_names = list(sig.parameters.keys())
         all_args = []
         for i, name in enumerate(param_names[:len(args)]):
-            # annotation = sig.parameters[name].annotation
             all_args.append(self.type_arg(args[i], sig, name))
         for i, name in enumerate(param_names[len(args):]):
             if name in kwargs:
@@ -150,9 +169,13 @@ class CC_Builder(BaseBuilder):
         param = sig.parameters[name]
         annotation = param.annotation
         if annotation is inspect.Parameter.empty:
-            return arg
+            val = arg
         else:
-            return annotation(arg)
+            val= annotation(arg)
+            
+        val = ctypes.byref(val) if self.config.refs and name in self.config.refs else val
+            
+        return val
 
     def clean(self):
         ''' Clean up the compiled shared object file.'''
