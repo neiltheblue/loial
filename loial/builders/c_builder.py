@@ -12,6 +12,9 @@ from .builder import BaseBuilder
 
 logger = logging.getLogger(__name__)
 
+class AsPointer():
+    def __init__(self, value):
+        self.value=value
 
 class CC_Config():
     """
@@ -33,6 +36,20 @@ class CC_Config():
         ''', code_type='CC', config=conf)
         def ref(a: ctypes.c_int, b):
         ...
+        
+    To pass an argument as a pointer it must be wraped in an AsPointer and a type hint must be provided:
+        
+        @build('''
+        int ref(int* a) {
+            *a=99;
+            ...
+        }
+        ''', code_type='CC')
+        def ref(a: ctypes.c_int, b):
+            ...
+
+        a = AsPointer(3)
+        assert a.value==99
         
     To define the function return type a hint should be applied in method signature:
 
@@ -147,7 +164,11 @@ class CC_Builder(BaseBuilder):
         sig = inspect.signature(self.fun)
         if sig.return_annotation != inspect._empty:
             fun.restype = sig.return_annotation
-        return fun(*tuple(all_args))
+        rtn = fun(*tuple(all_args))
+        for i, arg in enumerate(args):
+            if isinstance(arg, AsPointer):
+                arg.value = all_args[i].contents.value
+        return rtn
 
     def build_args(self, *args, **kwargs):
         sig = inspect.signature(self.fun)
@@ -168,12 +189,16 @@ class CC_Builder(BaseBuilder):
     def type_arg(self, arg, sig, name):
         param = sig.parameters[name]
         annotation = param.annotation
+        val = arg.value if isinstance(arg, AsPointer) else arg
         if annotation is inspect.Parameter.empty:
-            val = arg
+            val = val
         else:
-            val= annotation(arg)
+            val= annotation(val)
             
         val = ctypes.byref(val) if self.config.refs and name in self.config.refs else val
+            
+        if isinstance(arg, AsPointer):
+            val = ctypes.pointer(val)
             
         return val
 

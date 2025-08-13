@@ -5,7 +5,7 @@ import os
 import pathlib
 
 from pytest_mock import mocker
-from loial.builders.c_builder import CC_Builder, CC_Config
+from loial.builders.c_builder import CC_Builder, CC_Config, AsPointer
 from loial import build
 
 
@@ -333,11 +333,11 @@ def test_build_no_replace_function_return_type():
 
 
 def test_build_replace_function_pass_args_byref():
-    
+
     conf = CC_Config()
     conf.refs = {'a'}
-    
-    @build(r'''
+
+    @build('''
     int ref(int* a, int b) {
         return *a * b;
     }
@@ -348,3 +348,20 @@ def test_build_replace_function_pass_args_byref():
     a = 3
     b = 10
     assert ref(a, b) == 30
+
+
+def test_build_replace_function_pass_args_pointer():
+
+    @build('''
+    int ref(int* a, int b) {
+        *a=99;
+        return *a * b;
+    }
+    ''', code_type='CC')
+    def ref(a: ctypes.c_int, b):
+        return a+b
+
+    a = AsPointer(3)
+    b = 10
+    assert ref(a, b) == 990
+    assert a.value==99
