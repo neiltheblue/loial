@@ -12,6 +12,11 @@ from .builder import BaseBuilder
 
 logger = logging.getLogger(__name__)
 
+
+def c_build(code=None,  config=None, replace=True):
+    from ..builder import build
+    return build(code, code_type='CC', config=config, replace=replace)
+
 class AsPointer():
     def __init__(self, value):
         self.value=value
@@ -66,7 +71,7 @@ class CC_Config():
         refs ({str}): The parameter names to pass by reference, but the c type must also be set as a hint.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.cache_search_path = [
             f'{Path.home()}/.loial', './loial']
         self.compier_opts = ["-fPIC", "-shared", "-xc"]
@@ -75,6 +80,9 @@ class CC_Config():
         self.compiler = 'cc'
         self.function = None
         self.refs={}
+        
+        for name in kwargs.keys():
+            setattr(self, name, kwargs[name])
 
     @property
     def cache(self):
