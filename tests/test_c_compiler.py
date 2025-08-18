@@ -4,7 +4,7 @@ import pytest
 import os
 import pathlib
 from pytest_mock import mocker
-from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, cc_build
+from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, AsRef, cc_build
 
 
 @pytest.fixture(autouse=True)
@@ -299,7 +299,6 @@ def test_build_replace_function_name(mocker):
 
 def test_build_replace_function_return_type():
     @cc_build(r'''
-    #include <stdio.h>
     float freturn(int a, int b, int c) {
         return (a + b + c)/2.0;
     }
@@ -312,7 +311,6 @@ def test_build_replace_function_return_type():
 
 def test_build_no_replace_function_return_type():
     @cc_build(r'''
-    #include <stdio.h>
     float freturn(int a, int b, int c) {
         return (a + b + c)/2.0;
     }
@@ -325,34 +323,65 @@ def test_build_no_replace_function_return_type():
 
 def test_build_replace_function_pass_args_byref():
 
-    conf = CC_Config(refs=['a'])
-    # conf.refs = {'a'}
-
     @cc_build('''
     int ref(int* a, int b) {
-        return *a * b;
-    }
-    ''', config=conf)
-    def ref(a: ctypes.c_int, b):
-        return a+b
-
-    a = 3
-    b = 10
-    assert ref(a, b) == 30
-
-
-def test_build_replace_function_pass_args_pointer():
-
-    @cc_build('''
-    int ref(int* a, int b) {
-        *a=99;
         return *a * b;
     }
     ''')
     def ref(a: ctypes.c_int, b):
         return a+b
 
+    a = 3
+    b = 10
+    assert ref(AsRef(a), b) == 30
+    
+    
+def test_build_no_replace_function_pass_args_byref():
+
+    @cc_build('''
+    int ref(int* a, int b) {
+        return *a * b;
+    }
+    ''', replace=False)
+    def ref(a: ctypes.c_int, b):
+        return a()+b
+
+    a = 3
+    b = 10
+    assert ref(AsRef(a), b) == 13
+
+
+def test_build_replace_function_pass_args_pointer():
+
+    @cc_build('''
+    int ptr(int* a, int b) {
+        *a=99;
+        return *a * b;
+    }
+    ''')
+    def ptr(a: ctypes.c_int, b):
+        return a+b
+
     a = AsPointer(3)
     b = 10
-    assert ref(a, b) == 990
+    assert ptr(a, b) == 990
     assert a.value == 99
+    
+
+def test_build_no_replace_function_pass_args_pointer():
+
+    @cc_build('''
+    int ptr(int* a, int b) {
+        *a=99;
+        return *a * b;
+    }
+    ''', replace=False)
+    def ptr(a: ctypes.c_int, b):
+        a.value=10
+        return a()+b
+
+    a = AsPointer(3)
+    b = 10
+    assert ptr(a, b) == 20
+    assert a.value == 10
+

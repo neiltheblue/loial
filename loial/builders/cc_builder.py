@@ -21,7 +21,16 @@ def cc_build(code=None,  config=None, replace=True):
 class AsPointer():
     def __init__(self, value):
         self.value = value
+        
+    def __call__(self):
+        return self.value
 
+class AsRef():
+    def __init__(self, value):
+        self.value = value
+        
+    def __call__(self):
+        return self.value
 
 class CC_Config():
     """
@@ -31,27 +40,26 @@ class CC_Config():
         def fun1(a: ctypes.c_float, b: ctypes.c_float = 2.0):
         ...
 
-    To pass an argument by ref is must be listed in config.refs and a type hint must be provided:
+    To pass an argument by ref, a hint must be provided and the value wrapped in AsRef:
 
-        conf = CC_Config()
-        conf.refs = {'a'}
-
-        @build(r'''
+        @cc_build('''
         int ref(int* a, int b) {
             ...
         }
-        ''', code_type='CC', config=conf)
+        ''')
         def ref(a: ctypes.c_int, b):
         ...
+        
+        ref(AsRef(3), 4)
 
     To pass an argument as a pointer it must be wraped in an AsPointer and a type hint must be provided:
 
-        @build('''
+        @cc_build('''
         int ref(int* a) {
             *a=99;
             ...
         }
-        ''', code_type='CC')
+        ''')
         def ref(a: ctypes.c_int, b):
             ...
 
@@ -70,7 +78,6 @@ class CC_Config():
         compiler_opts ([str]): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
-        refs ({str}): The parameter names to pass by reference, but the c type must also be set as a hint.
     """
 
     def __init__(self, **kwargs):
@@ -81,7 +88,6 @@ class CC_Config():
         self.delete_on_exit = False
         self.compiler = 'cc'
         self.function = None
-        self.refs = {}
 
         for name in kwargs.keys():
             setattr(self, name, kwargs[name])
@@ -203,10 +209,10 @@ class CC_Builder(BaseBuilder):
         if annotation is inspect.Parameter.empty:
             val = val
         else:
-            val = annotation(val)
-
-        val = ctypes.byref(
-            val) if self.config.refs and name in self.config.refs else val
+            if isinstance(val, AsRef) :
+                val = ctypes.byref(annotation(val.value))
+            else:
+                val = annotation(val)
 
         if isinstance(arg, AsPointer):
             val = ctypes.pointer(val)
