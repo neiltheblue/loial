@@ -335,6 +335,21 @@ def test_build_replace_function_pass_args_byref():
     b = 10
     assert ref(AsRef(a), b) == 30
     
+
+def test_build_replace_function_pass_args_by_auto_ref():
+
+    @cc_build('''
+    int ref(int* a, int b) {
+        return *a * b;
+    }
+    ''', CC_Config(refs={'a'}))
+    def ref(a: ctypes.c_int, b):
+        return a+b
+
+    a = 3
+    b = 10
+    assert ref(a, b) == 30
+    
     
 def test_build_no_replace_function_pass_args_byref():
 

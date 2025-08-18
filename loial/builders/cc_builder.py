@@ -51,6 +51,18 @@ class CC_Config():
         ...
         
         ref(AsRef(3), 4)
+        
+    An alterntive it to add a config ref entry, and a hint must still be provided:
+
+        @cc_build('''
+        int ref(int* a, int b) {
+            ...
+        }
+        ''', CC_Config(refs={'a'}))
+        def ref(a: ctypes.c_int, b):
+        ...
+        
+        ref(3, 4)
 
     To pass an argument as a pointer it must be wraped in an AsPointer and a type hint must be provided:
 
@@ -78,6 +90,7 @@ class CC_Config():
         compiler_opts ([str]): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
+        refs ([str,...]): The list of arguments to auto parse as references.
     """
 
     def __init__(self, **kwargs):
@@ -88,6 +101,7 @@ class CC_Config():
         self.delete_on_exit = False
         self.compiler = 'cc'
         self.function = None
+        self.refs=[]
 
         for name in kwargs.keys():
             setattr(self, name, kwargs[name])
@@ -211,6 +225,8 @@ class CC_Builder(BaseBuilder):
         else:
             if isinstance(val, AsRef) :
                 val = ctypes.byref(annotation(val.value))
+            elif name in self.config.refs:
+                val = ctypes.byref(annotation(val))
             else:
                 val = annotation(val)
 
