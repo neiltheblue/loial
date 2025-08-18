@@ -1,5 +1,5 @@
 from loial import build
-from loial.builders.cc_builder import CC_Config, c_build
+from loial.builders.cc_builder import CC_Config, cc_build
 
 ############################
 ## Exercise: Python Builder
@@ -18,11 +18,10 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 ## Exercise: C Builder
 ############################
 
-# pass by pointer
 # pass array
 # try passing in a byte pack as a struct
 
-@c_build(r'''
+@cc_build(r'''
 #include <math.h>
 #include <stdio.h>
 int my_c_fun(int a, int b) {

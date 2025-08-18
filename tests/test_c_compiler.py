@@ -4,7 +4,7 @@ import pytest
 import os
 import pathlib
 from pytest_mock import mocker
-from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, c_build
+from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, cc_build
 
 
 @pytest.fixture(autouse=True)
@@ -19,7 +19,7 @@ def auto():
 
 
 def test_build_dont_replace_function_body():
-    @c_build('''
+    @cc_build('''
     int fun0() {
         return 10;
     }
@@ -31,7 +31,7 @@ def test_build_dont_replace_function_body():
 
 
 def test_build_replace_function_body():
-    @c_build('''
+    @cc_build('''
     int fun1() {
         return 10;
     }
@@ -43,7 +43,7 @@ def test_build_replace_function_body():
 
 
 def test_build_replace_function_body_so_exists():
-    @c_build('''
+    @cc_build('''
     int fun1() {
         return 10;
     }
@@ -53,7 +53,7 @@ def test_build_replace_function_body_so_exists():
 
     assert fun1.callable.compiled
 
-    @c_build('''
+    @cc_build('''
     int fun1() {
         return 10;
     }
@@ -66,7 +66,7 @@ def test_build_replace_function_body_so_exists():
 
 
 def test_build_replace_function_body_so_replace():
-    @c_build('''
+    @cc_build('''
     int fun1() {
         return 10;
     }
@@ -76,7 +76,7 @@ def test_build_replace_function_body_so_replace():
 
     assert fun1.callable.compiled
 
-    @c_build('''
+    @cc_build('''
     int fun1() {
         return 20;
     }
@@ -89,7 +89,7 @@ def test_build_replace_function_body_so_replace():
 
 
 def test_build_replace_function_body_single_int_args():
-    @c_build('''
+    @cc_build('''
     int fun2(int a) {
         return a * 10;
     }
@@ -101,7 +101,7 @@ def test_build_replace_function_body_single_int_args():
 
 
 def test_build_replace_function_body_multiple_int_args():
-    @c_build('''
+    @cc_build('''
     int fun3(int a, int b, int c) {
         return a + b + c;
     }
@@ -113,7 +113,7 @@ def test_build_replace_function_body_multiple_int_args():
 
 
 def test_build_replace_function_body_multiple_int_kwargs():
-    @c_build('''
+    @cc_build('''
     int fun4(int a, int b, int c, int d, int e) {
         return ((a + b + c)*d)/e;
     }
@@ -125,7 +125,7 @@ def test_build_replace_function_body_multiple_int_kwargs():
 
 
 def test_build_replace_function_body_multiple_int_kwargs_with_defaults():
-    @c_build('''
+    @cc_build('''
     int fun5(int a, int b, int c, int d, int e) {
         return ((a + b + c)*d)/e;
     }
@@ -137,7 +137,7 @@ def test_build_replace_function_body_multiple_int_kwargs_with_defaults():
 
 
 def test_build_compiler_error():
-    @c_build('''
+    @cc_build('''
         junk
     ''')
     def bad(a, b, c, d):
@@ -147,7 +147,7 @@ def test_build_compiler_error():
 
 
 def test_build_replace_function_body_missing_args():
-    @c_build('''
+    @cc_build('''
     int missing(int a, int b, int c, int d) {
         return a + b + c;
     }
@@ -164,7 +164,7 @@ def test_build_replace_function_body_missing_args():
 def test_body_auto_delete():
     CC_Config(delete_on_exit=True)
 
-    @c_build('''
+    @cc_build('''
     int delete_me() {
         return 10;
     }
@@ -180,7 +180,7 @@ def test_body_auto_delete():
 def test_body_default_delete():
     CC_Builder.config.delete_on_exit = True
 
-    @c_build('''
+    @cc_build('''
     int delete_me() {
         return 10;
     }
@@ -215,7 +215,7 @@ def test_cache_path():
 
 
 def test_build_replace_function_typed_args():
-    @c_build(r'''
+    @cc_build(r'''
     #include <stdio.h>
     int typed(short a, float b, float c) {
         
@@ -231,7 +231,7 @@ def test_build_replace_function_typed_args():
 
 
 def test_build_no_replace_function_typed_args():
-    @c_build(r'''
+    @cc_build(r'''
     #include <stdio.h>
     int typed(short a, float b, float c) {
         
@@ -250,7 +250,7 @@ def test_build_replace_compiler(mocker):
 
     spy = mocker.spy(subprocess, 'run')
 
-    @c_build(r'''
+    @cc_build(r'''
     int comp(int a, int b, int c) {
         return a + b + c;
     }
@@ -271,7 +271,7 @@ def test_build_replace_compiler_opts(mocker):
     conf = CC_Config()
     conf.compier_opts.append('-time')
 
-    @c_build(r'''
+    @cc_build(r'''
     int comp(int a, int b, int c) {
         return a + b + c;
     }
@@ -286,7 +286,7 @@ def test_build_replace_compiler_opts(mocker):
 
 def test_build_replace_function_name(mocker):
 
-    @c_build(r'''
+    @cc_build(r'''
     int main(int a, int b, int c) {
         return a + b + c;
     }
@@ -298,7 +298,7 @@ def test_build_replace_function_name(mocker):
 
 
 def test_build_replace_function_return_type():
-    @c_build(r'''
+    @cc_build(r'''
     #include <stdio.h>
     float freturn(int a, int b, int c) {
         return (a + b + c)/2.0;
@@ -311,7 +311,7 @@ def test_build_replace_function_return_type():
 
 
 def test_build_no_replace_function_return_type():
-    @c_build(r'''
+    @cc_build(r'''
     #include <stdio.h>
     float freturn(int a, int b, int c) {
         return (a + b + c)/2.0;
@@ -328,7 +328,7 @@ def test_build_replace_function_pass_args_byref():
     conf = CC_Config(refs=['a'])
     # conf.refs = {'a'}
 
-    @c_build('''
+    @cc_build('''
     int ref(int* a, int b) {
         return *a * b;
     }
@@ -343,7 +343,7 @@ def test_build_replace_function_pass_args_byref():
 
 def test_build_replace_function_pass_args_pointer():
 
-    @c_build('''
+    @cc_build('''
     int ref(int* a, int b) {
         *a=99;
         return *a * b;

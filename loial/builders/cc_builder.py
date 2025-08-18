@@ -13,13 +13,15 @@ from .builder import BaseBuilder
 logger = logging.getLogger(__name__)
 
 
-def c_build(code=None,  config=None, replace=True):
+def cc_build(code=None,  config=None, replace=True):
     from ..builder import build
     return build(code, code_type='CC', config=config, replace=replace)
 
+
 class AsPointer():
     def __init__(self, value):
-        self.value=value
+        self.value = value
+
 
 class CC_Config():
     """
@@ -28,12 +30,12 @@ class CC_Config():
 
         def fun1(a: ctypes.c_float, b: ctypes.c_float = 2.0):
         ...
-        
+
     To pass an argument by ref is must be listed in config.refs and a type hint must be provided:
 
         conf = CC_Config()
         conf.refs = {'a'}
-        
+
         @build(r'''
         int ref(int* a, int b) {
             ...
@@ -41,9 +43,9 @@ class CC_Config():
         ''', code_type='CC', config=conf)
         def ref(a: ctypes.c_int, b):
         ...
-        
+
     To pass an argument as a pointer it must be wraped in an AsPointer and a type hint must be provided:
-        
+
         @build('''
         int ref(int* a) {
             *a=99;
@@ -55,12 +57,12 @@ class CC_Config():
 
         a = AsPointer(3)
         assert a.value==99
-        
+
     To define the function return type a hint should be applied in method signature:
 
         def fun2(a, b) -> ctypes.c_float:        
         ...
-        
+
     Attributes:
         cache_search_path (list): List of directory paths (as strings) to search for or create as the cache location.
         cache (Path or None): The resolved cache directory path, or None if not yet set.
@@ -79,8 +81,8 @@ class CC_Config():
         self.delete_on_exit = False
         self.compiler = 'cc'
         self.function = None
-        self.refs={}
-        
+        self.refs = {}
+
         for name in kwargs.keys():
             setattr(self, name, kwargs[name])
 
@@ -201,13 +203,14 @@ class CC_Builder(BaseBuilder):
         if annotation is inspect.Parameter.empty:
             val = val
         else:
-            val= annotation(val)
-            
-        val = ctypes.byref(val) if self.config.refs and name in self.config.refs else val
-            
+            val = annotation(val)
+
+        val = ctypes.byref(
+            val) if self.config.refs and name in self.config.refs else val
+
         if isinstance(arg, AsPointer):
             val = ctypes.pointer(val)
-            
+
         return val
 
     def clean(self):
