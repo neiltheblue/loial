@@ -400,3 +400,20 @@ def test_build_no_replace_function_pass_args_pointer():
     assert ptr(a, b) == 20
     assert a.value == 10
 
+
+def test_build_replace_function_body_array_int_args():
+    @cc_build('''
+    int arr(int a[], int b) {
+        int i;
+        int sum=0;
+        for(i=0; i<b; i++)
+        {
+            sum = sum + a[i];
+        }        
+        return sum;
+    }
+    ''')
+    def arr(a: ctypes.c_int, b):
+        return max(a)
+
+    assert arr([1, 2, 3], 3) == 6

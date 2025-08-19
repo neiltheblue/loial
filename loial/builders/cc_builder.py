@@ -21,16 +21,18 @@ def cc_build(code=None,  config=None, replace=True):
 class AsPointer():
     def __init__(self, value):
         self.value = value
-        
+
     def __call__(self):
         return self.value
+
 
 class AsRef():
     def __init__(self, value):
         self.value = value
-        
+
     def __call__(self):
         return self.value
+
 
 class CC_Config():
     """
@@ -49,9 +51,9 @@ class CC_Config():
         ''')
         def ref(a: ctypes.c_int, b):
         ...
-        
+
         ref(AsRef(3), 4)
-        
+
     An alterntive it to add a config ref entry, and a hint must still be provided:
 
         @cc_build('''
@@ -61,8 +63,8 @@ class CC_Config():
         ''', CC_Config(refs={'a'}))
         def ref(a: ctypes.c_int, b):
         ...
-        
-        ref(3, 4)
+
+        ref(AsRef(3, 4)
 
     To pass an argument as a pointer it must be wraped in an AsPointer and a type hint must be provided:
 
@@ -77,6 +79,18 @@ class CC_Config():
 
         a = AsPointer(3)
         assert a.value==99
+        
+    To pass an array argument it must be passed as an instance of a list and a type hint must be provided:
+    
+    @cc_build('''
+    int arr_fun(int a[]) {
+        ...
+    }
+    ''')
+    def arr_fun(a: ctypes.c_int):
+        ...
+
+    arr_fun([1, 2, 3])
 
     To define the function return type a hint should be applied in method signature:
 
@@ -101,7 +115,7 @@ class CC_Config():
         self.delete_on_exit = False
         self.compiler = 'cc'
         self.function = None
-        self.refs=[]
+        self.refs = []
 
         for name in kwargs.keys():
             setattr(self, name, kwargs[name])
@@ -219,19 +233,23 @@ class CC_Builder(BaseBuilder):
     def type_arg(self, arg, sig, name):
         param = sig.parameters[name]
         annotation = param.annotation
-        val = arg.value if isinstance(arg, AsPointer) else arg
-        if annotation is inspect.Parameter.empty:
-            val = val
-        else:
-            if isinstance(val, AsRef) :
-                val = ctypes.byref(annotation(val.value))
-            elif name in self.config.refs:
-                val = ctypes.byref(annotation(val))
+        if isinstance(arg, list):
+            arr = annotation * len(arg)
+            val=arr(*tuple([self.type_arg(v, sig, name) for v in arg]))
+        else:            
+            val = arg.value if isinstance(arg, AsPointer) else arg
+            if annotation is inspect.Parameter.empty:
+                val = val
             else:
-                val = annotation(val)
+                if isinstance(val, AsRef):
+                    val = ctypes.byref(annotation(val.value))
+                elif name in self.config.refs:
+                    val = ctypes.byref(annotation(val))
+                else:
+                    val = annotation(val)
 
-        if isinstance(arg, AsPointer):
-            val = ctypes.pointer(val)
+            if isinstance(arg, AsPointer):
+                val = ctypes.pointer(val)
 
         return val
 
