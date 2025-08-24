@@ -65,7 +65,7 @@ class CC_Struct(ctypes.Structure):
             case ctypes.c_void_p:
                 return 'void *'
             case _:
-                str(c_type)
+                return c_type.__name__
     
     @classmethod
     def define(cls):

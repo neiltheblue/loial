@@ -421,6 +421,10 @@ def test_build_replace_function_body_array_int_args():
 
 def test_build_replace_function_body_array_struct_args():
 
+    class Field(CC_Struct):
+        _fields_ = [("a", ctypes.c_int),
+                    ("b", ctypes.c_int)]
+
     class Record(CC_Struct):
         _fields_ = [("first", ctypes.c_int),
                     ("second", ctypes.c_bool),
@@ -444,12 +448,14 @@ def test_build_replace_function_body_array_struct_args():
                     ("twenty", ctypes.c_char_p),
                     ("twentyone", ctypes.c_wchar_p),
                     ("twentytwo", ctypes.c_void_p),
+                    ("field", Field),
                     ]
 
     @cc_build('''
     #include<stdio.h>     
     #include <wchar.h>                       
               '''
+              + Field.define()
               + Record.define() +
               r'''
     
@@ -476,8 +482,9 @@ def test_build_replace_function_body_array_struct_args():
         printf("nineteenth:%llf (%lu)\n", r.nineteenth, sizeof(r.nineteenth));          
         printf("twenty:%c (%lu)\n", *r.twenty, sizeof(r.twenty));   
         printf("twentyone:%ld (%lu)\n", *r.twentyone, sizeof(r.twentyone));  
-        printf("twentytwo:%lu (%lu)\n", r.twentytwo, sizeof(r.twentytwo));                                                                                                       
-        return r.first *2;
+        printf("twentytwo:%lu (%lu)\n", r.twentytwo, sizeof(r.twentytwo)); 
+        printf("field:%d %d\n", r.field.a, r.field.b);                                                                                                       
+        return r.field.a * r.field.b;
     }
     ''')
     def stru(dom):
@@ -504,7 +511,11 @@ def test_build_replace_function_body_array_struct_args():
     dom.eighteenth = 4.32
     dom.nineteenth = 2.34
     dom.twenty = b'c'
-    dom.twentyone ='d'
+    dom.twentyone = 'd'
     dom.twentytwo = 999
+    field = Field()
+    field.a = 2
+    field.b = 10
+    dom.field = field
 
-    assert stru(dom) == 6
+    assert stru(dom) == 20
