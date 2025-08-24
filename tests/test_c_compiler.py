@@ -4,7 +4,7 @@ import pytest
 import os
 import pathlib
 from pytest_mock import mocker
-from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, AsRef, cc_build
+from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, AsRef, CC_Struct, cc_build
 
 
 @pytest.fixture(autouse=True)
@@ -334,7 +334,7 @@ def test_build_replace_function_pass_args_byref():
     a = 3
     b = 10
     assert ref(AsRef(a), b) == 30
-    
+
 
 def test_build_replace_function_pass_args_by_auto_ref():
 
@@ -349,8 +349,8 @@ def test_build_replace_function_pass_args_by_auto_ref():
     a = 3
     b = 10
     assert ref(a, b) == 30
-    
-    
+
+
 def test_build_no_replace_function_pass_args_byref():
 
     @cc_build('''
@@ -381,7 +381,7 @@ def test_build_replace_function_pass_args_pointer():
     b = 10
     assert ptr(a, b) == 990
     assert a.value == 99
-    
+
 
 def test_build_no_replace_function_pass_args_pointer():
 
@@ -392,7 +392,7 @@ def test_build_no_replace_function_pass_args_pointer():
     }
     ''', replace=False)
     def ptr(a: ctypes.c_int, b):
-        a.value=10
+        a.value = 10
         return a()+b
 
     a = AsPointer(3)
@@ -417,3 +417,94 @@ def test_build_replace_function_body_array_int_args():
         return max(a)
 
     assert arr([1, 2, 3], 3) == 6
+
+
+def test_build_replace_function_body_array_struct_args():
+
+    class Record(CC_Struct):
+        _fields_ = [("first", ctypes.c_int),
+                    ("second", ctypes.c_bool),
+                    ("third", ctypes.c_char),
+                    ("fourth", ctypes.c_wchar),
+                    ("fifth", ctypes.c_byte),
+                    ("sixth", ctypes.c_ubyte),
+                    ("seventh", ctypes.c_short),
+                    ("eighth", ctypes.c_ushort),
+                    ("nineth", ctypes.c_int),
+                    ("tenth", ctypes.c_uint),
+                    ("eleventh", ctypes.c_long),
+                    ("twelth", ctypes.c_ulong),
+                    ("thirteenth", ctypes.c_longlong),
+                    ("fourteenth", ctypes.c_ulonglong),
+                    ("fifteenth", ctypes.c_size_t),
+                    ("sixteenth", ctypes.c_ssize_t),
+                    ("seventeenth", ctypes.c_float),
+                    ("eighteenth", ctypes.c_double),
+                    ("nineteenth", ctypes.c_longdouble),
+                    ("twenty", ctypes.c_char_p),
+                    ("twentyone", ctypes.c_wchar_p),
+                    ("twentytwo", ctypes.c_void_p),
+                    ]
+
+    @cc_build('''
+    #include<stdio.h>     
+    #include <wchar.h>                       
+              '''
+              + Record.define() +
+              r'''
+    
+    int stru(Record r) {
+        printf("first:%d (%lu)\n", r.first, sizeof(r.first));
+        printf("second:%d (%lu)\n", r.second, sizeof(r.second));
+        printf("third:%c (%lu)\n", r.third, sizeof(r.third));
+        printf("fourth:%ld (%lu)\n", r.fourth, sizeof(r.fourth));
+        printf("fifth:%d (%lu)\n", r.fifth, sizeof(r.fifth));
+        printf("sixth:%d (%lu)\n", r.sixth, sizeof(r.sixth));
+        printf("seventh:%d (%lu)\n", r.seventh, sizeof(r.seventh));
+        printf("eighth:%d (%lu)\n", r.eighth, sizeof(r.eighth));                
+        printf("nineth:%d (%lu)\n", r.nineth, sizeof(r.nineth));
+        printf("tenth:%u (%lu)\n", r.tenth, sizeof(r.tenth));        
+        printf("eleventh:%ld (%lu)\n", r.eleventh, sizeof(r.eleventh));
+        printf("twelth:%lu (%lu)\n", r.twelth, sizeof(r.twelth));
+        printf("thirteenth:%lld (%lu)\n", r.tenth, sizeof(r.thirteenth));
+        printf("fourteenth:%llu (%lu)\n", r.fourteenth, sizeof(r.fourteenth));  
+        
+        printf("fifteenth:%zx (%lu)\n", r.fifteenth, sizeof(r.fifteenth));  
+        printf("sixteenth:%zx (%lu)\n", r.sixteenth, sizeof(r.sixteenth));  
+        printf("seventeenth:%f (%lu)\n", r.seventeenth, sizeof(r.seventeenth));  
+        printf("eighteenth:%lf (%lu)\n", r.eighteenth, sizeof(r.eighteenth));  
+        printf("nineteenth:%llf (%lu)\n", r.nineteenth, sizeof(r.nineteenth));          
+        printf("twenty:%c (%lu)\n", *r.twenty, sizeof(r.twenty));   
+        printf("twentyone:%ld (%lu)\n", *r.twentyone, sizeof(r.twentyone));  
+        printf("twentytwo:%lu (%lu)\n", r.twentytwo, sizeof(r.twentytwo));                                                                                                       
+        return r.first *2;
+    }
+    ''')
+    def stru(dom):
+        return str(dom)
+
+    dom = Record()
+    dom.first = 3
+    dom.second = True
+    dom.third = b'a'
+    dom.fourth = 'b'
+    dom.fifth = 127
+    dom.sixth = 255
+    dom.seventh = -1
+    dom.eighth = -1
+    dom.nineth = -2
+    dom.tenth = -2
+    dom.eleventh = -3
+    dom.twelth = -3
+    dom.thirteenth = -4
+    dom.fourteenth = -4
+    dom.fifteenth = 123
+    dom.sixteenth = 124
+    dom.seventeenth = 1.23
+    dom.eighteenth = 4.32
+    dom.nineteenth = 2.34
+    dom.twenty = b'c'
+    dom.twentyone ='d'
+    dom.twentytwo = 999
+
+    assert stru(dom) == 6

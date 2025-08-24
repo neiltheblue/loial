@@ -18,6 +18,63 @@ def cc_build(code=None,  config=None, replace=True):
     return build(code, code_type='CC', config=config, replace=replace)
 
 
+class CC_Struct(ctypes.Structure): 
+    
+    def match_type(c_type):
+        match c_type:
+            case ctypes.c_bool:
+                return '_Bool'
+            case ctypes.c_char:
+                return 'char'
+            case ctypes.c_wchar:
+                return 'wchar_t'
+            case ctypes.c_byte:
+                return 'char'
+            case ctypes.c_ubyte:
+                return 'unsigned char'
+            case ctypes.c_short:
+                return 'short'
+            case ctypes.c_ushort:
+                return 'unsigned short'
+            case ctypes.c_int:
+                return 'int'
+            case ctypes.c_uint:
+                return 'unsigned int'
+            case ctypes.c_long:
+                return 'long'
+            case ctypes.c_ulong:
+                return 'unsigned long'
+            case ctypes.c_longlong:
+                return 'long long'
+            case ctypes.c_ulonglong:
+                return 'unsigned long long'
+            case ctypes.c_size_t:
+                return 'size_t'
+            case ctypes.c_ssize_t:
+                return 'ssize_t'
+            case ctypes.c_float:
+                return 'float'
+            case ctypes.c_double:
+                return 'double'
+            case ctypes.c_longdouble:
+                return 'long double'
+            case ctypes.c_char_p:
+                return 'char *'
+            case ctypes.c_wchar_p:
+                return 'wchar_t *'
+            case ctypes.c_void_p:
+                return 'void *'
+            case _:
+                str(c_type)
+    
+    @classmethod
+    def define(cls):
+        return f'''
+typedef struct {{
+\t{';\n\t'.join((CC_Struct.match_type(field[1])+' '+field[0] for field in cls._fields_))};
+}} {cls.__name__};
+'''
+
 class AsPointer():
     def __init__(self, value):
         self.value = value
@@ -157,6 +214,7 @@ class CC_Builder(BaseBuilder):
 
     def __init__(self, code, config=None):
         self.config = config if config else CC_Builder.config
+        logger.debug(f"Input code:\n{code}")
         BaseBuilder.__init__(self, code, config)
 
     def clean_cache():

@@ -18,7 +18,10 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 ## Exercise: C Builder
 ############################
 
-# try passing in a byte pack as a struct
+# try passing in a union
+# try struct in struct
+# try generating struct from object instance
+# test multiple return types
 
 @cc_build(r'''
 #include <math.h>
