@@ -14,12 +14,59 @@ logger = logging.getLogger(__name__)
 
 
 def cc_build(code=None,  config=None, replace=True):
+    """ Helper decorator to default the code_type t0 'CC' """
     from ..builder import build
     return build(code, code_type='CC', config=config, replace=replace)
 
 
-class CC_Struct(ctypes.Structure): 
-    
+def c_struct(cls):
+    """ Class decorator to add auto C struct support """
+    cls_dict = cls.__dict__.copy()
+    cls_dict['_fields_'] = [(name, cls.__annotations__[name])
+                            for name in cls.__annotations__]
+    return type(cls.__name__,  (C_Struct,) + cls.__bases__, cls_dict)
+
+
+class C_Struct(ctypes.Structure):
+    """ Class mix-in to generate C structs from ctype fields.
+
+    A struct object can be passed in by subclassing CC_Struct and defining the attribute 
+    types in the class _fields_:
+
+        class Record(CC_Struct):
+        _fields_ = [("first", ctypes.c_int),
+                    ("second", ctypes.c_bool)]
+
+        @cc_build(r'''
+            #include<stdio.h>
+            '''
+                + Record.define()
+                + r'''
+
+        int stru(Record r) {
+            printf("first:%d (%lu)\n", r.first, sizeof(r.first));
+            printf("second:%d (%lu)\n", r.second, sizeof(r.second)); 
+            ...
+            )       
+            ''')
+        def stru(dom):
+            ...
+
+        dom = Record()
+        dom.first = 3
+        dom.second = True            
+        stru(dom)
+
+    A class can be auto wrapped into a CC_Struct when attributes has annotations:
+
+    @c_struct
+    class LocalStruct():
+        a: ctypes.c_int
+        b: ctypes.c_float
+        multi: LocalInnerStruct     
+
+    """
+
     def match_type(c_type):
         match c_type:
             case ctypes.c_bool:
@@ -66,14 +113,15 @@ class CC_Struct(ctypes.Structure):
                 return 'void *'
             case _:
                 return c_type.__name__
-    
+
     @classmethod
     def define(cls):
         return f'''
 typedef struct {{
-\t{';\n\t'.join((CC_Struct.match_type(field[1])+' '+field[0] for field in cls._fields_))};
+\t{';\n\t'.join((C_Struct.match_type(field[1])+' '+field[0] for field in cls._fields_))};
 }} {cls.__name__};
 '''
+
 
 class AsPointer():
     def __init__(self, value):
@@ -136,9 +184,9 @@ class CC_Config():
 
         a = AsPointer(3)
         assert a.value==99
-        
+
     To pass an array argument it must be passed as an instance of a list and a type hint must be provided:
-    
+
     @cc_build('''
     int arr_fun(int a[]) {
         ...
@@ -153,6 +201,7 @@ class CC_Config():
 
         def fun2(a, b) -> ctypes.c_float:        
         ...
+
 
     Attributes:
         cache_search_path (list): List of directory paths (as strings) to search for or create as the cache location.
@@ -293,8 +342,8 @@ class CC_Builder(BaseBuilder):
         annotation = param.annotation
         if isinstance(arg, list):
             arr = annotation * len(arg)
-            val=arr(*tuple([self.type_arg(v, sig, name) for v in arg]))
-        else:            
+            val = arr(*tuple([self.type_arg(v, sig, name) for v in arg]))
+        else:
             val = arg.value if isinstance(arg, AsPointer) else arg
             if annotation is inspect.Parameter.empty:
                 val = val

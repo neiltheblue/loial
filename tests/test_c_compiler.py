@@ -4,7 +4,7 @@ import pytest
 import os
 import pathlib
 from pytest_mock import mocker
-from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, AsRef, CC_Struct, cc_build
+from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, AsRef, C_Struct, cc_build, c_struct
 
 
 @pytest.fixture(autouse=True)
@@ -419,13 +419,13 @@ def test_build_replace_function_body_array_int_args():
     assert arr([1, 2, 3], 3) == 6
 
 
-def test_build_replace_function_body_array_struct_args():
+def test_build_replace_function_body_struct_args():
 
-    class Field(CC_Struct):
+    class Field(C_Struct):
         _fields_ = [("a", ctypes.c_int),
                     ("b", ctypes.c_int)]
 
-    class Record(CC_Struct):
+    class Record(C_Struct):
         _fields_ = [("first", ctypes.c_int),
                     ("second", ctypes.c_bool),
                     ("third", ctypes.c_char),
@@ -519,3 +519,43 @@ def test_build_replace_function_body_array_struct_args():
     dom.field = field
 
     assert stru(dom) == 20
+
+
+def test_build_replace_function_body_auto_struct_args():
+
+    class SuperClass():
+        pass
+
+    @c_struct
+    class LocalInnerStruct(SuperClass):
+        c: ctypes.c_short
+
+    @c_struct
+    class LocalStruct():
+        a: ctypes.c_int
+        b: ctypes.c_float
+        multi: LocalInnerStruct
+
+    @cc_build('''
+    #include<stdio.h>     
+              '''
+              + LocalInnerStruct.define()
+              + LocalStruct.define() +
+              r'''
+    
+    int loca(LocalStruct s) {
+        printf("a:%d (%lu)\n", s.a, sizeof(s.a));
+        printf("b:%f (%lu)\n", s.b, sizeof(s.b));
+        return (s.a * s.b) * s.multi.c;
+    }
+    ''')
+    def loca(loc) -> ctypes.c_float:
+        return str(loc)
+
+    loc = LocalStruct()
+    loc.a = 3
+    loc.b = 3.5
+    loc.multi = LocalInnerStruct()
+    loc.multi.c = 5
+
+    assert loca(loc) == 52.5
