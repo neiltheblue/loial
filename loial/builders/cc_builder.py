@@ -211,6 +211,7 @@ class CC_Config():
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
         refs ([str,...]): The list of arguments to auto parse as references.
+        includes ([str,...]): The list of include locations, by default the python source dir is added to this list.
     """
 
     def __init__(self, **kwargs):
@@ -222,6 +223,7 @@ class CC_Config():
         self.compiler = 'cc'
         self.function = None
         self.refs = []
+        self.includes = []
 
         for name in kwargs.keys():
             setattr(self, name, kwargs[name])
@@ -289,7 +291,12 @@ class CC_Builder(BaseBuilder):
 
         if not os.path.exists(self.so_file):
             try:
-                out = subprocess.run([self.config.compiler] + self.config.compier_opts + ["-o", self.so_file,  "-"],
+                includes = self.config.includes + [Path(self.fun.__code__.co_filename).parent.absolute()]
+                inc = [i for p in includes for i in ['-I', str(p)]]
+                out = subprocess.run([self.config.compiler] 
+                                     + inc 
+                                     + self.config.compier_opts 
+                                     + ["-o", self.so_file,  "-"],
                                      text=True, capture_output=True,
                                      input=self.code, check=True)
             except subprocess.CalledProcessError as e:

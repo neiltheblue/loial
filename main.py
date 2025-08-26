@@ -20,8 +20,9 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 # Exercise: C Builder
 ############################
 
-# test multiple return types
-
+# add library support
+# add external code file support
+# add method callback
 
 @cc_build(r'''
 #include <math.h>

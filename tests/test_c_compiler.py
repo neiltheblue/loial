@@ -281,7 +281,7 @@ def test_build_replace_compiler_opts(mocker):
 
     assert comp(1, 2, 3) == 6
     spy.assert_called_once()
-    assert spy.call_args_list[0].args[0][len(conf.compier_opts)] == '-time'
+    assert '-time' in spy.call_args_list[0].args[0]
 
 
 def test_build_replace_function_name(mocker):
@@ -559,3 +559,18 @@ def test_build_replace_function_body_auto_struct_args():
     loc.multi.c = 5
 
     assert loca(loc) == 52.5
+
+
+def test_build_replace_function_body_include_header():
+    @cc_build('''
+    #include "values.h"
+    #include "more_values.h"
+    
+    int inc1(int a) {
+        return a * VALUE * XTR_VALUE;
+    }
+    ''', CC_Config(includes=[os.path.join(pathlib.Path(__file__).parent, 'headers')]))
+    def inc1(a):
+        return a
+
+    assert inc1(3) == 24
