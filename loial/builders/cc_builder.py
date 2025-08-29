@@ -7,6 +7,7 @@ import ctypes
 import inspect
 import os
 import logging
+from copy import deepcopy
 from pathlib import Path
 from .builder import BaseBuilder
 
@@ -30,7 +31,7 @@ def c_struct(cls):
 class C_Struct(ctypes.Structure):
     """ Class mix-in to generate C structs from ctype fields.
 
-    A struct object can be passed in by subclassing CC_Struct and defining the attribute 
+    A struct object can be passed in by subclassing CC_Struct and defining the attribute
     types in the class _fields_:
 
         class Record(CC_Struct):
@@ -45,16 +46,16 @@ class C_Struct(ctypes.Structure):
 
         int stru(Record r) {
             printf("first:%d (%lu)\n", r.first, sizeof(r.first));
-            printf("second:%d (%lu)\n", r.second, sizeof(r.second)); 
+            printf("second:%d (%lu)\n", r.second, sizeof(r.second));
             ...
-            )       
+            )
             ''')
         def stru(dom):
             ...
 
         dom = Record()
         dom.first = 3
-        dom.second = True            
+        dom.second = True
         stru(dom)
 
     A class can be auto wrapped into a CC_Struct when attributes has annotations:
@@ -63,7 +64,7 @@ class C_Struct(ctypes.Structure):
     class LocalStruct():
         a: ctypes.c_int
         b: ctypes.c_float
-        multi: LocalInnerStruct     
+        multi: LocalInnerStruct
 
     """
 
@@ -199,31 +200,37 @@ class CC_Config():
 
     To define the function return type a hint should be applied in method signature:
 
-        def fun2(a, b) -> ctypes.c_float:        
+        def fun2(a, b) -> ctypes.c_float:
         ...
 
 
     Attributes:
-        cache_search_path (list): List of directory paths (as strings) to search for or create as the cache location.
+        cache_search_path (str,..): List of directory paths (as strings) to search for or create as the cache location.
         cache (Path or None): The resolved cache directory path, or None if not yet set.
         compiler (str): The compiler app. [cc]
-        compiler_opts ([str]): Compiler options. ["-fPIC", "-shared", "-xc"]
+        compiler_opts (str,..): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
         refs ([str,...]): The list of arguments to auto parse as references.
         includes ([str,...]): The list of include locations, by default the python source dir is added to this list.
     """
 
+    cache_search_path = (os.path.join(Path.home(), '.loial'), Path('./loial'))
+    compiler_opts = ('-fPIC', '-shared', '-xc')
+    delete_on_exit = False
+    compiler = 'cc'
+
     def __init__(self, **kwargs):
-        self.cache_search_path = [
-            f'{Path.home()}/.loial', './loial']
-        self.compier_opts = ["-fPIC", "-shared", "-xc"]
-        self.__cache = None
-        self.delete_on_exit = False
-        self.compiler = 'cc'
+        self.cache_search_path = CC_Config.cache_search_path
+        self.compiler_opts = CC_Config.compiler_opts
+        self.delete_on_exit = CC_Config.delete_on_exit
+        self.compiler = CC_Config.compiler
+
         self.function = None
         self.refs = []
         self.includes = []
+
+        self.__cache = None
 
         for name in kwargs.keys():
             setattr(self, name, kwargs[name])
@@ -252,25 +259,10 @@ class CC_Config():
     def cache(self, value):
         ''' Set the cache locaion for compiled code.'''
         self.__cache = value
-
-
-class CC_Builder(BaseBuilder):
-    ''' CC Compiler for dynamically compiling code into a function body.
-
-            Compiler Opts:
-            delete_on_exit (bool): - If True, deletes the compiled shared object file on exit. [Default set by config]
-    '''
-
-    config = CC_Config()
-
-    def __init__(self, code, config=None):
-        self.config = config if config else CC_Builder.config
-        logger.debug(f"Input code:\n{code}")
-        BaseBuilder.__init__(self, code, config)
-
-    def clean_cache():
+        
+    def clean_cache(self):
         ''' Clean up the cache directory.'''
-        cache_path = CC_Builder.config.cache
+        cache_path = self.cache
         if cache_path and cache_path.exists():
             try:
                 logger.debug(f"Removing cache directory: {cache_path}")
@@ -278,38 +270,55 @@ class CC_Builder(BaseBuilder):
             except OSError as e:
                 logger.error(
                     f"Error removing cache directory: {cache_path}", exc_info=True)
-            CC_Builder.config.cache = None
+            self.cache = None
+
+class CC_Builder(BaseBuilder):
+    ''' CC Compiler for dynamically compiling code into a function body. '''
+
+    def __init__(self, code, config=None):
+        self.config = config if config else CC_Config()
+        logger.debug(f"Input code:\n{code}")
+        BaseBuilder.__init__(self, code, config)
+
+
+    @staticmethod
+    def cc_compile(code, filename, config):
+        try:
+            inc = [i for p in config.includes for i in ['-I', str(p)]]
+            out = subprocess.run([config.compiler]
+                                 + inc
+                                 + list(config.compiler_opts)
+                                 + ["-o", filename,  "-"],
+                                 text=True, capture_output=True,
+                                 input=code, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(
+                f'Error compiling code: {e.stderr}', exc_info=True)
+            logger.debug(f'{"=" * 10}\n{code}')
+            return None
+        else:
+            logger.debug(
+                f'Compiled C code to: {filename}\n{out.stdout}')
+            return filename
 
     def compile(self, fun):
         self.fun = fun
-        self.so_file = f"{CC_Builder.config.cache}/{self.fun.__module__}.{self.fun.__name__}_{abs(hash(self.code))}.so"
+        self.so_file = f"{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_{abs(hash(self.code))}.so"
         logger.debug(f'Shared object file: {self.so_file}')
         for existing in glob.glob(f"./{self.fun.__module__}.{self.fun.__name__}_*.so"):
             if existing != self.so_file:
                 logger.debug(f'Removing existing shared object: {existing}')
                 os.remove(existing)
 
+        self.compiled = False
         if not os.path.exists(self.so_file):
-            try:
-                includes = self.config.includes + [Path(self.fun.__code__.co_filename).parent.absolute()]
-                inc = [i for p in includes for i in ['-I', str(p)]]
-                out = subprocess.run([self.config.compiler] 
-                                     + inc 
-                                     + self.config.compier_opts 
-                                     + ["-o", self.so_file,  "-"],
-                                     text=True, capture_output=True,
-                                     input=self.code, check=True)
-            except subprocess.CalledProcessError as e:
-                logger.error(
-                    f'Error compiling C code: {e.stderr}', exc_info=True)
-                logger.debug(f'{"=" * 10}\n{self.code}')
-                return None
+            parent = Path(self.fun.__code__.co_filename).parent.absolute()
+            if not parent in self.config.includes:
+                self.config.includes.append(parent)
+            if CC_Builder.cc_compile(self.code, self.so_file, self.config):
+                self.compiled = True
             else:
-                logger.debug(
-                    f'Compiled C code to shared object: {self.so_file}\n{out.stdout}')
-            self.compiled = True
-        else:
-            self.compiled = False
+                return None
 
         self.main = ctypes.CDLL(self.so_file)
         return self

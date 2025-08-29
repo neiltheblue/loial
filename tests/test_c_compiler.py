@@ -9,13 +9,11 @@ from loial.builders.cc_builder import CC_Builder, CC_Config, AsPointer, AsRef, C
 
 @pytest.fixture(autouse=True)
 def auto():
-    temp_search_path = CC_Builder.config.cache_search_path
-    CC_Builder.cache_search_path = ['./.cache']
+    temp_search_path = CC_Config.cache_search_path
+    CC_Config.cache_search_path = ['./.cache']
     yield
-    CC_Builder.clean_cache()
-    CC_Builder.config.cache_search_path = temp_search_path
-    CC_Builder.config.cache = None
-    CC_Builder.config.delete_on_exit = False
+    CC_Config().clean_cache()
+    CC_Config.cache_search_path = temp_search_path
 
 
 def test_build_dont_replace_function_body():
@@ -178,40 +176,44 @@ def test_body_auto_delete():
 
 
 def test_body_default_delete():
-    CC_Builder.config.delete_on_exit = True
+    try:
+        CC_Config.delete_on_exit = True
 
-    @cc_build('''
-    int delete_me() {
-        return 10;
-    }
-    ''')
-    def delete_me():
-        return 1
+        @cc_build('''
+        int delete_me() {
+            return 10;
+        }
+        ''')
+        def delete_me():
+            return 1
 
-    so_file = delete_me.callable.so_file
-    delete_me.callable.__del__()
-    assert not os.path.exists(so_file)
+        so_file = delete_me.callable.so_file
+        delete_me.callable.__del__()
+        assert not os.path.exists(so_file)
+    finally:
+        CC_Config.delete_on_exit = False
 
 
 def test_cache_path():
     cache = '.cache'
+    config = CC_Config()
     try:
-        CC_Builder.config.cache = None
-        CC_Builder.config.cache_search_path = [f'{cache}/test_cache1']
-        assert CC_Builder.config.cache == pathlib.Path(f'{cache}/test_cache1')
+        config.cache = None
+        config.cache_search_path = [f'{cache}/test_cache1']
+        assert config.cache == pathlib.Path(f'{cache}/test_cache1')
     finally:
-        CC_Builder.clean_cache()
+        config.clean_cache()
 
     try:
-        CC_Builder.config.cache = None
-        CC_Builder.config.cache_search_path = [None, f'{cache}/test_cache2']
-        assert CC_Builder.config.cache == pathlib.Path(f'{cache}/test_cache2')
+        config.cache = None
+        config.cache_search_path = [None, f'{cache}/test_cache2']
+        assert config.cache == pathlib.Path(f'{cache}/test_cache2')
     finally:
-        CC_Builder.clean_cache()
+        config.clean_cache()
 
-    CC_Builder.config.cache = None
-    CC_Builder.config.cache_search_path = [None]
-    assert isinstance(CC_Builder.config.cache, pathlib.Path)
+    config.cache = None
+    config.cache_search_path = [None]
+    assert isinstance(config.cache, pathlib.Path)
 
 
 def test_build_replace_function_typed_args():
@@ -269,7 +271,7 @@ def test_build_replace_compiler_opts(mocker):
     spy = mocker.spy(subprocess, 'run')
 
     conf = CC_Config()
-    conf.compier_opts.append('-time')
+    conf.compiler_opts = list(conf.compiler_opts) + ['-time']
 
     @cc_build(r'''
     int comp(int a, int b, int c) {
