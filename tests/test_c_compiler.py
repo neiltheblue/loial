@@ -41,21 +41,20 @@ def test_build_replace_function_body():
 
 
 def test_build_replace_function_body_so_exists():
-    @cc_build('''
+    
+    code = '''
     int fun1() {
         return 10;
     }
-    ''')
+    '''    
+    
+    @cc_build(code)
     def fun1():
         return 1
 
     assert fun1.callable.compiled
 
-    @cc_build('''
-    int fun1() {
-        return 10;
-    }
-    ''')
+    @cc_build(code)
     def fun1():
         return 1
 

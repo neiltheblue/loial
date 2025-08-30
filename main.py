@@ -20,8 +20,6 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 # Exercise: C Builder
 ############################
 
-# remove builder congig
-# make an object build config subclass
 # add library support
 # add external code file support
 # add method callback

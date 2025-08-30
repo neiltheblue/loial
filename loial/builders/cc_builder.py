@@ -7,6 +7,7 @@ import ctypes
 import inspect
 import os
 import logging
+import hashlib
 from copy import deepcopy
 from pathlib import Path
 from .builder import BaseBuilder
@@ -303,7 +304,7 @@ class CC_Builder(BaseBuilder):
 
     def compile(self, fun):
         self.fun = fun
-        self.so_file = f"{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_{abs(hash(self.code))}.so"
+        self.so_file = f"{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_{hashlib.md5(self.code.encode('utf-8')).hexdigest()}.so"
         logger.debug(f'Shared object file: {self.so_file}')
         for existing in glob.glob(f"./{self.fun.__module__}.{self.fun.__name__}_*.so"):
             if existing != self.so_file:
