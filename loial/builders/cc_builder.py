@@ -212,8 +212,9 @@ class CC_Config():
         compiler_opts (str,..): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
-        refs (str,...): The list of arguments to auto parse as references.
-        includes (str,...): The list of include locations, by default the python source dir is added to this list.
+        refs (str,..): The list of arguments to auto parse as references.
+        includes (str,..): The list of include locations, by default the python source dir is added to this list.
+        src (src,..): List of additional src files
     """
 
     cache_search_path = (os.path.join(Path.home(), '.loial'), Path('./loial'))
@@ -230,6 +231,7 @@ class CC_Config():
         self.function = None
         self.refs = []
         self.includes = []
+        self.src = []
 
         self.__cache = None
 
@@ -284,12 +286,15 @@ class CC_Builder(BaseBuilder):
 
     @staticmethod
     def cc_compile(code, filename, config):
+        src_file = os.path.abspath(filename+'.c')
         try:
+            with open(src_file, 'w') as out:
+                out.write(code)
             inc = [i for p in config.includes for i in ['-I', str(p)]]
             cmd = [config.compiler] + inc + \
                 list(config.compiler_opts) + \
                 [f'-L{Path(config.cache).absolute()}'] + \
-                ["-o", filename] +  ["-"]
+                ["-o", filename] + [src_file] + [f for f in config.src]
             out = subprocess.run(cmd,
                                  text=True, capture_output=True,
                                  input=code, check=True)
@@ -302,6 +307,8 @@ class CC_Builder(BaseBuilder):
             logger.debug(
                 f'Compiled C code to: {filename}\n{out.stdout}')
             return filename
+        finally:
+            os.remove(src_file)
 
     def compile(self, fun):
         self.fun = fun
