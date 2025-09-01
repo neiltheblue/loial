@@ -41,13 +41,13 @@ def test_build_replace_function_body():
 
 
 def test_build_replace_function_body_so_exists():
-    
+
     code = '''
     int fun1() {
         return 10;
     }
-    '''    
-    
+    '''
+
     @cc_build(code)
     def fun1():
         return 1

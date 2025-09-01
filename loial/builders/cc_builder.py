@@ -212,8 +212,8 @@ class CC_Config():
         compiler_opts (str,..): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
-        refs ([str,...]): The list of arguments to auto parse as references.
-        includes ([str,...]): The list of include locations, by default the python source dir is added to this list.
+        refs (str,...): The list of arguments to auto parse as references.
+        includes (str,...): The list of include locations, by default the python source dir is added to this list.
     """
 
     cache_search_path = (os.path.join(Path.home(), '.loial'), Path('./loial'))
@@ -260,7 +260,7 @@ class CC_Config():
     def cache(self, value):
         ''' Set the cache locaion for compiled code.'''
         self.__cache = value
-        
+
     def clean_cache(self):
         ''' Clean up the cache directory.'''
         cache_path = self.cache
@@ -273,6 +273,7 @@ class CC_Config():
                     f"Error removing cache directory: {cache_path}", exc_info=True)
             self.cache = None
 
+
 class CC_Builder(BaseBuilder):
     ''' CC Compiler for dynamically compiling code into a function body. '''
 
@@ -281,15 +282,15 @@ class CC_Builder(BaseBuilder):
         logger.debug(f"Input code:\n{code}")
         BaseBuilder.__init__(self, code, config)
 
-
     @staticmethod
     def cc_compile(code, filename, config):
         try:
             inc = [i for p in config.includes for i in ['-I', str(p)]]
-            out = subprocess.run([config.compiler]
-                                 + inc
-                                 + list(config.compiler_opts)
-                                 + ["-o", filename,  "-"],
+            cmd = [config.compiler] + inc + \
+                list(config.compiler_opts) + \
+                [f'-L{Path(config.cache).absolute()}'] + \
+                ["-o", filename] +  ["-"]
+            out = subprocess.run(cmd,
                                  text=True, capture_output=True,
                                  input=code, check=True)
         except subprocess.CalledProcessError as e:
@@ -304,7 +305,7 @@ class CC_Builder(BaseBuilder):
 
     def compile(self, fun):
         self.fun = fun
-        self.so_file = f"{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_{hashlib.md5(self.code.encode('utf-8')).hexdigest()}.so"
+        self.so_file = f"{self.config.cache}/lib{self.fun.__module__}.{self.fun.__name__}_{hashlib.md5(self.code.encode('utf-8')).hexdigest()}.so"
         logger.debug(f'Shared object file: {self.so_file}')
         for existing in glob.glob(f"./{self.fun.__module__}.{self.fun.__name__}_*.so"):
             if existing != self.so_file:
@@ -321,8 +322,14 @@ class CC_Builder(BaseBuilder):
             else:
                 return None
 
-        self.main = ctypes.CDLL(self.so_file)
-        return self
+        try:
+            self.main = ctypes.LibraryLoader(
+                ctypes.CDLL).LoadLibrary(self.so_file)
+            return self
+        except Exception as e:
+            logger.error(
+                f'Failed to load library: {self.so_file}', exc_info=True)
+            return None
 
     def __call__(self, *args, **kwargs):
         fun_name = self.config.function if self.config.function else self.fun.__name__
