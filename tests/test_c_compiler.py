@@ -608,7 +608,7 @@ def test_build_replace_function_body_multiple_src():
     int src1(int a) {
         return dub(ten(a));
     }
-    ''', CC_Config(src=[src_file2, src_file3]))
+    ''', CC_Config(src_files=[src_file2, src_file3]))
     def src1(a):
         return a
 
@@ -617,7 +617,7 @@ def test_build_replace_function_body_multiple_src():
 
 def test_build_replace_function_body_src_file():
 
-    src_file1 = CC_Config().create_cache_path( 'src1.c')
+    src_file1 = CC_Config().create_cache_path('src1.c')
     with open(src_file1, 'w') as out:
         out.write('''
                     int ten(int a);        
@@ -628,7 +628,7 @@ def test_build_replace_function_body_src_file():
                     }
                   ''')
 
-    src_file2 = CC_Config().create_cache_path( 'src2.c')
+    src_file2 = CC_Config().create_cache_path('src2.c')
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
@@ -639,7 +639,7 @@ def test_build_replace_function_body_src_file():
                   }
                   ''')
 
-    src_file3 = CC_Config().create_cache_path( 'src3.c')
+    src_file3 = CC_Config().create_cache_path('src3.c')
     with open(src_file3, 'w') as out:
         out.write('''
                   int dub(int a);
@@ -650,16 +650,16 @@ def test_build_replace_function_body_src_file():
                   }
                   ''')
 
-    @cc_build(config=CC_Config(src=[src_file1, src_file2, src_file3]))
+    @cc_build(config=CC_Config(src_files=[src_file1, src_file2, src_file3]))
     def src1(a):
         return a
 
     assert src1(3) == 60
 
 
-def test_build_replace_function_body_object_src_file():
+def test_build_replace_function_body_object_file():
 
-    src_file1 = CC_Config().create_cache_path( 'src1.c')
+    src_file1 = CC_Config().create_cache_path('src1.c')
     with open(src_file1, 'w') as out:
         out.write('''
                     int ten(int a);        
@@ -670,7 +670,7 @@ def test_build_replace_function_body_object_src_file():
                     }
                   ''')
 
-    src_file2 = CC_Config().create_cache_path( 'src2.c')
+    src_file2 = CC_Config().create_cache_path('src2.c')
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
@@ -681,7 +681,7 @@ def test_build_replace_function_body_object_src_file():
                   }
                   ''')
 
-    obj_file = CC_Config().create_cache_path( 'src3.o')
+    obj_file = CC_Config().create_cache_path('src3.o')
     CC_Builder.cc_compile('''
                   int dub(int a);
                   
@@ -691,7 +691,35 @@ def test_build_replace_function_body_object_src_file():
                   }
                   ''', CC_Config().create_cache_path('src3.o'), CC_Config(compiler_opts=('-c', '-xc')))
 
-    @cc_build(config=CC_Config(src=[src_file1, src_file2, obj_file]))
+    @cc_build(config=CC_Config(src_files=[obj_file, src_file1, src_file2]))
+    def src1(a):
+        return a
+
+    assert src1(3) == 60
+
+
+def test_build_replace_function_body_object_lib_file():
+
+    obj_file = CC_Config().create_cache_path('srclib.o')
+    CC_Builder.cc_compile('''
+                  int dub(int a);
+                  
+                  int dub(int a)
+                  {
+                      return a * 2;
+                  }
+                  ''', obj_file, CC_Config(compiler_opts=('-c', '-xc')))
+
+    lib_file = CC_Builder.archive(
+        CC_Config().create_cache_path('srclib.a'), [obj_file])
+
+    @cc_build('''
+            int dub(int a);      
+                            
+                    int src1(int a) {
+                        return dub(a*10);
+                    }
+                  ''', CC_Config(lib_files=[lib_file]))
     def src1(a):
         return a
 

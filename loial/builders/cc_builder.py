@@ -208,13 +208,14 @@ class CC_Config():
     Attributes:
         cache_search_path (str,..): List of directory paths (as strings) to search for or create as the cache location.
         cache (Path or None): The resolved cache directory path, or None if not yet set.
-        compiler (str): The compiler app. [cc]
+        compiler (str): The compiler command. [cc]
         compiler_opts (str,..): Compiler options. ["-fPIC", "-shared", "-xc"]
         delete_on_exit (bool): The default delete_on_exit value if not set per build. [False]
         function (str): The function name to call, if None then the name of the funciton being replaced is used. [None]
         refs (str,..): The list of arguments to auto parse as references.
         includes (str,..): The list of include locations, by default the python source dir is added to this list.
-        src (src,..): List of additional src files
+        src_files (src,..): List of additional src files
+        lib_files (src,..): List of additional static library files
     """
 
     cache_search_path = (os.path.join(Path.home(), '.loial'), Path('./loial'))
@@ -231,7 +232,8 @@ class CC_Config():
         self.function = None
         self.refs = []
         self.includes = []
-        self.src = []
+        self.src_files = []
+        self.lib_files = []
 
         self.__cache = None
 
@@ -289,25 +291,40 @@ class CC_Builder(BaseBuilder):
         BaseBuilder.__init__(self, code, config)
 
     @staticmethod
-    def cc_compile(code, filename, config):
+    def archive(output_filename, srcs):
+        cmd = ['ar', 'rcs', '-o', output_filename] + srcs
+        try:
+            out = subprocess.run(
+                cmd, text=True, capture_output=True, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(
+                f'Error archiveing library: {e.stderr}', exc_info=True)
+            return None
+        else:
+            logger.debug(
+                f'Archived to: {output_filename}\n{out.stdout}')
+        return output_filename
+
+    @staticmethod
+    def cc_compile(code, output_filename, config):
         try:
             src_file = None
-            opts = list(config.compiler_opts)
             if code:
-                src_file = os.path.abspath(filename+'.c')
+                src_file = os.path.abspath(output_filename+'.c')
                 with open(src_file, 'w') as out:
                     out.write(code)
-                opts.append('-xc')
             inc = [i for p in config.includes for i in ['-I', str(p)]]
-            cmd = [config.compiler] + inc + \
-                list(config.compiler_opts) + \
-                [f'-L{config.cache}'] + \
-                ["-o", filename] + [f for f in config.src]
+            opts = list(config.compiler_opts)
+            cmd = [config.compiler] + inc + opts + \
+                ["-o", output_filename]
             if src_file:
                 cmd.append(src_file)
-            out = subprocess.run(cmd,
-                                 text=True, capture_output=True,
-                                 input=code, check=True)
+            for input in config.src_files:
+                cmd.append(input)
+            for input in config.lib_files:
+                cmd.append(input)
+            out = subprocess.run(
+                cmd, text=True, capture_output=True, input=code, check=True)
         except subprocess.CalledProcessError as e:
             logger.error(
                 f'Error compiling code: {e.stderr}', exc_info=True)
@@ -315,8 +332,8 @@ class CC_Builder(BaseBuilder):
             return None
         else:
             logger.debug(
-                f'Compiled C code to: {filename}\n{out.stdout}')
-            return filename
+                f'Compiled C code to: {output_filename}\n{out.stdout}')
+            return output_filename
         finally:
             if src_file:
                 os.remove(src_file)
