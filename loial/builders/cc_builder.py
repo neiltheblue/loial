@@ -218,7 +218,7 @@ class CC_Config():
     """
 
     cache_search_path = (os.path.join(Path.home(), '.loial'), Path('./loial'))
-    compiler_opts = ('-fPIC', '-shared', '-xc')
+    compiler_opts = ('-fPIC', '-shared')
     delete_on_exit = False
     compiler = 'cc'
 
@@ -245,7 +245,7 @@ class CC_Config():
             for search_path in self.cache_search_path:
                 try:
                     os.makedirs(search_path, exist_ok=True)
-                    self.__cache = Path(search_path)
+                    self.__cache = Path(search_path).absolute()
                     logger.debug(f'Setting cache path to: {search_path}')
                     break
                 except Exception as e:
@@ -253,7 +253,7 @@ class CC_Config():
                         f'Error creating cache directory {search_path}: {e}')
             else:
                 self.__cache = pathlib.Path(
-                    tempfile.TemporaryDirectory(prefix='loial_').name)
+                    tempfile.TemporaryDirectory(prefix='loial_').name).absolute()
                 logger.debug(
                     f'Using temporary directory for cache: {self.__cache}')
         return self.__cache
@@ -262,6 +262,10 @@ class CC_Config():
     def cache(self, value):
         ''' Set the cache locaion for compiled code.'''
         self.__cache = value
+
+    def create_cache_path(self, filename):
+        ''' Create a cached file name '''
+        return os.path.join(self.cache, filename)
 
     def clean_cache(self):
         ''' Clean up the cache directory.'''
@@ -285,16 +289,22 @@ class CC_Builder(BaseBuilder):
         BaseBuilder.__init__(self, code, config)
 
     @staticmethod
-    def cc_compile(code, filename, config):        
+    def cc_compile(code, filename, config):
         try:
-            src_file = os.path.abspath(filename+'.c')
-            with open(src_file, 'w') as out:
-                out.write(code)
+            src_file = None
+            opts = list(config.compiler_opts)
+            if code:
+                src_file = os.path.abspath(filename+'.c')
+                with open(src_file, 'w') as out:
+                    out.write(code)
+                opts.append('-xc')
             inc = [i for p in config.includes for i in ['-I', str(p)]]
             cmd = [config.compiler] + inc + \
                 list(config.compiler_opts) + \
-                [f'-L{Path(config.cache).absolute()}'] + \
-                ["-o", filename] + [src_file] + [f for f in config.src]
+                [f'-L{config.cache}'] + \
+                ["-o", filename] + [f for f in config.src]
+            if src_file:
+                cmd.append(src_file)
             out = subprocess.run(cmd,
                                  text=True, capture_output=True,
                                  input=code, check=True)
@@ -308,20 +318,20 @@ class CC_Builder(BaseBuilder):
                 f'Compiled C code to: {filename}\n{out.stdout}')
             return filename
         finally:
-            os.remove(src_file)
+            if src_file:
+                os.remove(src_file)
 
     def compile(self, fun):
         self.fun = fun
         hash = hashlib.md5(self.code.encode('utf-8')).hexdigest()
         filename = f'{self.fun.__module__}.{self.fun.__name__}_{hash}.lib'
-        self.so_file = os.path.join(self.config.cache, filename)
+        self.so_file = self.config.create_cache_path(filename)
         logger.debug(f'Shared object file: {self.so_file}')
-        if not isinstance(self.code, Path):
-            for existing in glob.glob(f'{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_*.lib'):
-                if existing != self.so_file:
-                    logger.debug(
-                        f'Removing existing shared object: {existing}')
-                    os.remove(existing)
+        for existing in glob.glob(f'{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_*.lib'):
+            if existing != self.so_file:
+                logger.debug(
+                    f'Removing existing shared object: {existing}')
+                os.remove(existing)
 
         self.compiled = False
         if not os.path.exists(self.so_file):

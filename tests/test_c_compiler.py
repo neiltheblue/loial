@@ -199,14 +199,14 @@ def test_cache_path():
     try:
         config.cache = None
         config.cache_search_path = [f'{cache}/test_cache1']
-        assert config.cache == pathlib.Path(f'{cache}/test_cache1')
+        assert config.cache == pathlib.Path(f'{cache}/test_cache1').absolute()
     finally:
         config.clean_cache()
 
     try:
         config.cache = None
         config.cache_search_path = [None, f'{cache}/test_cache2']
-        assert config.cache == pathlib.Path(f'{cache}/test_cache2')
+        assert config.cache == pathlib.Path(f'{cache}/test_cache2').absolute()
     finally:
         config.clean_cache()
 
@@ -579,7 +579,7 @@ def test_build_replace_function_body_include_header():
 
 def test_build_replace_function_body_multiple_src():
 
-    src_file2 = os.path.join(CC_Config().cache, 'src2.c')
+    src_file2 = CC_Config().create_cache_path('src2.c')
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
@@ -590,7 +590,7 @@ def test_build_replace_function_body_multiple_src():
                   }
                   ''')
 
-    src_file3 = os.path.join(CC_Config().cache, 'src3.c')
+    src_file3 = CC_Config().create_cache_path('src3.c')
     with open(src_file3, 'w') as out:
         out.write('''
                   int dub(int a);
@@ -613,11 +613,11 @@ def test_build_replace_function_body_multiple_src():
         return a
 
     assert src1(3) == 60
-    
+
 
 def test_build_replace_function_body_src_file():
 
-    src_file1 = os.path.join(CC_Config().cache, 'src1.c')
+    src_file1 = CC_Config().create_cache_path( 'src1.c')
     with open(src_file1, 'w') as out:
         out.write('''
                     int ten(int a);        
@@ -628,7 +628,7 @@ def test_build_replace_function_body_src_file():
                     }
                   ''')
 
-    src_file2 = os.path.join(CC_Config().cache, 'src2.c')
+    src_file2 = CC_Config().create_cache_path( 'src2.c')
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
@@ -639,7 +639,7 @@ def test_build_replace_function_body_src_file():
                   }
                   ''')
 
-    src_file3 = os.path.join(CC_Config().cache, 'src3.c')
+    src_file3 = CC_Config().create_cache_path( 'src3.c')
     with open(src_file3, 'w') as out:
         out.write('''
                   int dub(int a);
@@ -655,4 +655,44 @@ def test_build_replace_function_body_src_file():
         return a
 
     assert src1(3) == 60
-    
+
+
+def test_build_replace_function_body_object_src_file():
+
+    src_file1 = CC_Config().create_cache_path( 'src1.c')
+    with open(src_file1, 'w') as out:
+        out.write('''
+                    int ten(int a);        
+                    int dub(int a);      
+                            
+                    int src1(int a) {
+                        return dub(ten(a));
+                    }
+                  ''')
+
+    src_file2 = CC_Config().create_cache_path( 'src2.c')
+    with open(src_file2, 'w') as out:
+        out.write('''
+                  int ten(int a);
+                  
+                  int ten(int a)
+                  {
+                      return a * 10;
+                  }
+                  ''')
+
+    obj_file = CC_Config().create_cache_path( 'src3.o')
+    CC_Builder.cc_compile('''
+                  int dub(int a);
+                  
+                  int dub(int a)
+                  {
+                      return a * 2;
+                  }
+                  ''', CC_Config().create_cache_path('src3.o'), CC_Config(compiler_opts=('-c', '-xc')))
+
+    @cc_build(config=CC_Config(src=[src_file1, src_file2, obj_file]))
+    def src1(a):
+        return a
+
+    assert src1(3) == 60

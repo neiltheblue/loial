@@ -12,6 +12,8 @@ class Python_Builder(BaseBuilder):
         BaseBuilder.__init__(self, code, config)
 
     def compile(self, fun):
+        if not self.code:
+            return None
         source = f'def __{fun.__name__}{inspect.signature(fun)}:'
         for line in self.code.splitlines():
             source += f'\t{line}\n'

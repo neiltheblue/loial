@@ -20,7 +20,7 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 # Exercise: C Builder
 ############################
 
-# add object src
+# add lib src
 # add method callback
 # add dynamic library support
 # add static library support
