@@ -579,8 +579,8 @@ def test_build_replace_function_body_include_header():
 
 def test_build_replace_function_body_multiple_src():
 
-    src_file1 = os.path.join(CC_Config().cache, 'src2.c')
-    with open(src_file1, 'w') as out:
+    src_file2 = os.path.join(CC_Config().cache, 'src2.c')
+    with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
                   
@@ -590,8 +590,8 @@ def test_build_replace_function_body_multiple_src():
                   }
                   ''')
 
-    src_file2 = os.path.join(CC_Config().cache, 'src3.c')
-    with open(src_file2, 'w') as out:
+    src_file3 = os.path.join(CC_Config().cache, 'src3.c')
+    with open(src_file3, 'w') as out:
         out.write('''
                   int dub(int a);
                   
@@ -608,8 +608,51 @@ def test_build_replace_function_body_multiple_src():
     int src1(int a) {
         return dub(ten(a));
     }
-    ''', CC_Config(src=[src_file1, src_file2]))
+    ''', CC_Config(src=[src_file2, src_file3]))
     def src1(a):
         return a
 
     assert src1(3) == 60
+    
+
+def test_build_replace_function_body_src_file():
+
+    src_file1 = os.path.join(CC_Config().cache, 'src1.c')
+    with open(src_file1, 'w') as out:
+        out.write('''
+                    int ten(int a);        
+                    int dub(int a);      
+                            
+                    int src1(int a) {
+                        return dub(ten(a));
+                    }
+                  ''')
+
+    src_file2 = os.path.join(CC_Config().cache, 'src2.c')
+    with open(src_file2, 'w') as out:
+        out.write('''
+                  int ten(int a);
+                  
+                  int ten(int a)
+                  {
+                      return a * 10;
+                  }
+                  ''')
+
+    src_file3 = os.path.join(CC_Config().cache, 'src3.c')
+    with open(src_file3, 'w') as out:
+        out.write('''
+                  int dub(int a);
+                  
+                  int dub(int a)
+                  {
+                      return a * 2;
+                  }
+                  ''')
+
+    @cc_build(config=CC_Config(src=[src_file1, src_file2, src_file3]))
+    def src1(a):
+        return a
+
+    assert src1(3) == 60
+    

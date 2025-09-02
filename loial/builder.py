@@ -26,8 +26,7 @@ def build(code=None, code_type='Python', config= None, replace=True):
             function: A wrapper function that executes the provided code.
         '''
 
-    compiler = None
-    if code and replace:
+    if replace:
         for subclass in BaseBuilder.__subclasses__():
             if subclass.__name__.startswith(f'{code_type}_'):
                 logger.debug(f'Using compiler: {subclass.__name__}')

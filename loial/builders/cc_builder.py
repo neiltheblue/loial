@@ -15,7 +15,7 @@ from .builder import BaseBuilder
 logger = logging.getLogger(__name__)
 
 
-def cc_build(code=None,  config=None, replace=True):
+def cc_build(code='',  config=None, replace=True):
     """ Helper decorator to default the code_type t0 'CC' """
     from ..builder import build
     return build(code, code_type='CC', config=config, replace=replace)
@@ -285,9 +285,9 @@ class CC_Builder(BaseBuilder):
         BaseBuilder.__init__(self, code, config)
 
     @staticmethod
-    def cc_compile(code, filename, config):
-        src_file = os.path.abspath(filename+'.c')
+    def cc_compile(code, filename, config):        
         try:
+            src_file = os.path.abspath(filename+'.c')
             with open(src_file, 'w') as out:
                 out.write(code)
             inc = [i for p in config.includes for i in ['-I', str(p)]]
@@ -312,12 +312,16 @@ class CC_Builder(BaseBuilder):
 
     def compile(self, fun):
         self.fun = fun
-        self.so_file = f"{self.config.cache}/lib{self.fun.__module__}.{self.fun.__name__}_{hashlib.md5(self.code.encode('utf-8')).hexdigest()}.so"
+        hash = hashlib.md5(self.code.encode('utf-8')).hexdigest()
+        filename = f'{self.fun.__module__}.{self.fun.__name__}_{hash}.lib'
+        self.so_file = os.path.join(self.config.cache, filename)
         logger.debug(f'Shared object file: {self.so_file}')
-        for existing in glob.glob(f"./{self.fun.__module__}.{self.fun.__name__}_*.so"):
-            if existing != self.so_file:
-                logger.debug(f'Removing existing shared object: {existing}')
-                os.remove(existing)
+        if not isinstance(self.code, Path):
+            for existing in glob.glob(f'{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_*.lib'):
+                if existing != self.so_file:
+                    logger.debug(
+                        f'Removing existing shared object: {existing}')
+                    os.remove(existing)
 
         self.compiled = False
         if not os.path.exists(self.so_file):
