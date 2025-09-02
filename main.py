@@ -22,7 +22,6 @@ print(f'function output is: "{my_py_fun('Ha!', 10)}" \n')
 
 # add method callback
 # add dynamic library support
-# add static library support
 
 
 @cc_build(r'''

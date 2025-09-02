@@ -306,6 +306,15 @@ class CC_Builder(BaseBuilder):
         return output_filename
 
     @staticmethod
+    def cc_compile_obj(code, output_filename, config=None):
+        if config:
+            config = deepcopy(config)
+        else:
+            config = CC_Config()
+        config.compiler_opts = ('-c', '-xc')
+        return CC_Builder.cc_compile(code, output_filename, config)
+
+    @staticmethod
     def cc_compile(code, output_filename, config):
         try:
             src_file = None

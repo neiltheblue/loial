@@ -700,15 +700,14 @@ def test_build_replace_function_body_object_file():
 
 def test_build_replace_function_body_object_lib_file():
 
-    obj_file = CC_Config().create_cache_path('srclib.o')
-    CC_Builder.cc_compile('''
+    obj_file =CC_Builder.cc_compile_obj('''
                   int dub(int a);
                   
                   int dub(int a)
                   {
                       return a * 2;
                   }
-                  ''', obj_file, CC_Config(compiler_opts=('-c', '-xc')))
+                  ''', CC_Config().create_cache_path('srclib.o'))
 
     lib_file = CC_Builder.archive(
         CC_Config().create_cache_path('srclib.a'), [obj_file])
