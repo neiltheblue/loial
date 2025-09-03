@@ -219,7 +219,7 @@ def test_build_replace_function_typed_args():
     @cc_build(r'''
     #include <stdio.h>
     int typed(short a, float b, float c) {
-        
+
         printf("sizes:%d %d %d\n", sizeof(a), sizeof(b), sizeof(c));
         printf("values:%d %d %d\n", a, b, c);
         return a + b + c;
@@ -235,7 +235,7 @@ def test_build_no_replace_function_typed_args():
     @cc_build(r'''
     #include <stdio.h>
     int typed(short a, float b, float c) {
-        
+
         printf("sizes:%d %d %d\n", sizeof(a), sizeof(b), sizeof(c));
         printf("values:%d %d %d\n", a, b, c);
         return a + b + c;
@@ -410,7 +410,7 @@ def test_build_replace_function_body_array_int_args():
         for(i=0; i<b; i++)
         {
             sum = sum + a[i];
-        }        
+        }
         return sum;
     }
     ''')
@@ -453,13 +453,13 @@ def test_build_replace_function_body_struct_args():
                     ]
 
     @cc_build('''
-    #include<stdio.h>     
-    #include <wchar.h>                       
+    #include<stdio.h>
+    #include <wchar.h>
               '''
               + Field.define()
               + Record.define() +
               r'''
-    
+
     int stru(Record r) {
         printf("first:%d (%lu)\n", r.first, sizeof(r.first));
         printf("second:%d (%lu)\n", r.second, sizeof(r.second));
@@ -468,23 +468,23 @@ def test_build_replace_function_body_struct_args():
         printf("fifth:%d (%lu)\n", r.fifth, sizeof(r.fifth));
         printf("sixth:%d (%lu)\n", r.sixth, sizeof(r.sixth));
         printf("seventh:%d (%lu)\n", r.seventh, sizeof(r.seventh));
-        printf("eighth:%d (%lu)\n", r.eighth, sizeof(r.eighth));                
+        printf("eighth:%d (%lu)\n", r.eighth, sizeof(r.eighth));
         printf("nineth:%d (%lu)\n", r.nineth, sizeof(r.nineth));
-        printf("tenth:%u (%lu)\n", r.tenth, sizeof(r.tenth));        
+        printf("tenth:%u (%lu)\n", r.tenth, sizeof(r.tenth));
         printf("eleventh:%ld (%lu)\n", r.eleventh, sizeof(r.eleventh));
         printf("twelth:%lu (%lu)\n", r.twelth, sizeof(r.twelth));
         printf("thirteenth:%lld (%lu)\n", r.tenth, sizeof(r.thirteenth));
-        printf("fourteenth:%llu (%lu)\n", r.fourteenth, sizeof(r.fourteenth));  
-        
-        printf("fifteenth:%zx (%lu)\n", r.fifteenth, sizeof(r.fifteenth));  
-        printf("sixteenth:%zx (%lu)\n", r.sixteenth, sizeof(r.sixteenth));  
-        printf("seventeenth:%f (%lu)\n", r.seventeenth, sizeof(r.seventeenth));  
-        printf("eighteenth:%lf (%lu)\n", r.eighteenth, sizeof(r.eighteenth));  
-        printf("nineteenth:%llf (%lu)\n", r.nineteenth, sizeof(r.nineteenth));          
-        printf("twenty:%c (%lu)\n", *r.twenty, sizeof(r.twenty));   
-        printf("twentyone:%ld (%lu)\n", *r.twentyone, sizeof(r.twentyone));  
-        printf("twentytwo:%lu (%lu)\n", r.twentytwo, sizeof(r.twentytwo)); 
-        printf("field:%d %d\n", r.field.a, r.field.b);                                                                                                       
+        printf("fourteenth:%llu (%lu)\n", r.fourteenth, sizeof(r.fourteenth));
+
+        printf("fifteenth:%zx (%lu)\n", r.fifteenth, sizeof(r.fifteenth));
+        printf("sixteenth:%zx (%lu)\n", r.sixteenth, sizeof(r.sixteenth));
+        printf("seventeenth:%f (%lu)\n", r.seventeenth, sizeof(r.seventeenth));
+        printf("eighteenth:%lf (%lu)\n", r.eighteenth, sizeof(r.eighteenth));
+        printf("nineteenth:%llf (%lu)\n", r.nineteenth, sizeof(r.nineteenth));
+        printf("twenty:%c (%lu)\n", *r.twenty, sizeof(r.twenty));
+        printf("twentyone:%ld (%lu)\n", *r.twentyone, sizeof(r.twentyone));
+        printf("twentytwo:%lu (%lu)\n", r.twentytwo, sizeof(r.twentytwo));
+        printf("field:%d %d\n", r.field.a, r.field.b);
         return r.field.a * r.field.b;
     }
     ''')
@@ -538,12 +538,12 @@ def test_build_replace_function_body_auto_struct_args():
         multi: LocalInnerStruct
 
     @cc_build('''
-    #include<stdio.h>     
+    #include<stdio.h>
               '''
               + LocalInnerStruct.define()
               + LocalStruct.define() +
               r'''
-    
+
     int loca(LocalStruct s) {
         printf("a:%d (%lu)\n", s.a, sizeof(s.a));
         printf("b:%f (%lu)\n", s.b, sizeof(s.b));
@@ -566,7 +566,7 @@ def test_build_replace_function_body_include_header():
     @cc_build('''
     #include "values.h"
     #include "more_values.h"
-    
+
     int inc1(int a) {
         return a * VALUE * XTR_VALUE;
     }
@@ -583,7 +583,7 @@ def test_build_replace_function_body_multiple_src():
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
-                  
+
                   int ten(int a)
                   {
                       return a * 10;
@@ -594,17 +594,17 @@ def test_build_replace_function_body_multiple_src():
     with open(src_file3, 'w') as out:
         out.write('''
                   int dub(int a);
-                  
+
                   int dub(int a)
                   {
                       return a * 2;
                   }
                   ''')
 
-    @cc_build('''              
-    int ten(int a);        
-    int dub(int a);      
-              
+    @cc_build('''
+    int ten(int a);
+    int dub(int a);
+
     int src1(int a) {
         return dub(ten(a));
     }
@@ -620,9 +620,9 @@ def test_build_replace_function_body_src_file():
     src_file1 = CC_Config().create_cache_path('src1.c')
     with open(src_file1, 'w') as out:
         out.write('''
-                    int ten(int a);        
-                    int dub(int a);      
-                            
+                    int ten(int a);
+                    int dub(int a);
+
                     int src1(int a) {
                         return dub(ten(a));
                     }
@@ -632,7 +632,7 @@ def test_build_replace_function_body_src_file():
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
-                  
+
                   int ten(int a)
                   {
                       return a * 10;
@@ -643,7 +643,7 @@ def test_build_replace_function_body_src_file():
     with open(src_file3, 'w') as out:
         out.write('''
                   int dub(int a);
-                  
+
                   int dub(int a)
                   {
                       return a * 2;
@@ -662,9 +662,9 @@ def test_build_replace_function_body_object_file():
     src_file1 = CC_Config().create_cache_path('src1.c')
     with open(src_file1, 'w') as out:
         out.write('''
-                    int ten(int a);        
-                    int dub(int a);      
-                            
+                    int ten(int a);
+                    int dub(int a);
+
                     int src1(int a) {
                         return dub(ten(a));
                     }
@@ -674,7 +674,7 @@ def test_build_replace_function_body_object_file():
     with open(src_file2, 'w') as out:
         out.write('''
                   int ten(int a);
-                  
+
                   int ten(int a)
                   {
                       return a * 10;
@@ -684,7 +684,7 @@ def test_build_replace_function_body_object_file():
     obj_file = CC_Config().create_cache_path('src3.o')
     CC_Builder.cc_compile('''
                   int dub(int a);
-                  
+
                   int dub(int a)
                   {
                       return a * 2;
@@ -698,11 +698,11 @@ def test_build_replace_function_body_object_file():
     assert src1(3) == 60
 
 
-def test_build_replace_function_body_object_lib_file():
+def test_build_replace_function_body_static_lib_file():
 
-    obj_file =CC_Builder.cc_compile_obj('''
+    obj_file = CC_Builder.cc_compile_obj('''
                   int dub(int a);
-                  
+
                   int dub(int a)
                   {
                       return a * 2;
@@ -713,13 +713,69 @@ def test_build_replace_function_body_object_lib_file():
         CC_Config().create_cache_path('srclib.a'), [obj_file])
 
     @cc_build('''
-            int dub(int a);      
-                            
+            int dub(int a);
+
                     int src1(int a) {
                         return dub(a*10);
                     }
-                  ''', CC_Config(lib_files=[lib_file]))
+                  ''', CC_Config(static_libs=[lib_file]))
     def src1(a):
         return a
 
     assert src1(3) == 60
+
+
+def test_build_replace_function_body_shared_lib_file():
+
+    @cc_build('''
+            int fail(int a) {
+                return a-2;
+            }
+            ''', CC_Config(shared_libs=['stdc--']))
+    def fail(a):
+        return a+1
+
+    assert fail(3) == 4
+
+    @cc_build('''
+            int work(int a) {
+                return a-2;
+            }
+            ''', CC_Config(shared_libs=['stdc++']))
+    def work(a):
+        return a+1
+
+    assert work(3) == 1
+
+
+def test_build_replace_function_body_callback_function():
+
+    @ctypes.CFUNCTYPE(ctypes.c_float, ctypes.c_int, ctypes.c_int)
+    def cb(a, b):
+        return (a+b)*10.0
+
+    @cc_build('''
+            float cbfun(int a, int b, float (*cb)(int, int)) {
+                return cb(a,b);
+            }
+            ''')
+    def cbfun(a, b, cb)->ctypes.c_float:
+        return a-b
+
+    assert cbfun(1, 1, cb) == 20
+    
+
+def test_build_replace_function_body_auto_callback_function():
+
+    def cb(a: ctypes.c_int, b: ctypes.c_int) ->ctypes.c_float:
+        return (a+b)*10.0
+
+    @cc_build('''
+            float cbfun(int a, int b, float (*cb)(int, int)) {
+                return cb(a,b);
+            }
+            ''')
+    def cbfun(a, b, cb) -> ctypes.c_float:
+        return a-b
+
+    assert cbfun(1, 1, cb) == 20

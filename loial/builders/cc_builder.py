@@ -144,24 +144,7 @@ class AsRef():
 class CC_Config():
     """
     Configuration class for managing the cache directory used by C_Builder.
-    To cast an argument to a specific c type, provide a hint in method signature:
-
-        def fun1(a: ctypes.c_float, b: ctypes.c_float = 2.0):
-        ...
-
-    To pass an argument by ref, a hint must be provided and the value wrapped in AsRef:
-
-        @cc_build('''
-        int ref(int* a, int b) {
-            ...
-        }
-        ''')
-        def ref(a: ctypes.c_int, b):
-        ...
-
-        ref(AsRef(3), 4)
-
-    An alterntive it to add a config ref entry, and a hint must still be provided:
+    An alternative to AsRef is adding a config ref entry, and a hint must still be provided:
 
         @cc_build('''
         int ref(int* a, int b) {
@@ -173,7 +156,7 @@ class CC_Config():
 
         ref(AsRef(3, 4)
 
-    To pass an argument as a pointer it must be wraped in an AsPointer and a type hint must be provided:
+    To pass an argument as a pointer it must be wrapped in an AsPointer and a type hint must be provided:
 
         @cc_build('''
         int ref(int* a) {
@@ -187,23 +170,6 @@ class CC_Config():
         a = AsPointer(3)
         assert a.value==99
 
-    To pass an array argument it must be passed as an instance of a list and a type hint must be provided:
-
-    @cc_build('''
-    int arr_fun(int a[]) {
-        ...
-    }
-    ''')
-    def arr_fun(a: ctypes.c_int):
-        ...
-
-    arr_fun([1, 2, 3])
-
-    To define the function return type a hint should be applied in method signature:
-
-        def fun2(a, b) -> ctypes.c_float:
-        ...
-
 
     Attributes:
         cache_search_path (str,..): List of directory paths (as strings) to search for or create as the cache location.
@@ -215,7 +181,8 @@ class CC_Config():
         refs (str,..): The list of arguments to auto parse as references.
         includes (str,..): The list of include locations, by default the python source dir is added to this list.
         src_files (src,..): List of additional src files
-        lib_files (src,..): List of additional static library files
+        static_libs (src,..): List of additional static library files
+        shared_libs (src,..): List of additional shared library names
     """
 
     cache_search_path = (os.path.join(Path.home(), '.loial'), Path('./loial'))
@@ -233,7 +200,8 @@ class CC_Config():
         self.refs = []
         self.includes = []
         self.src_files = []
-        self.lib_files = []
+        self.static_libs = []
+        self.shared_libs = []
 
         self.__cache = None
 
@@ -283,7 +251,58 @@ class CC_Config():
 
 
 class CC_Builder(BaseBuilder):
-    ''' CC Compiler for dynamically compiling code into a function body. '''
+    """ CC Compiler for dynamically compiling code into a function body. 
+    
+        To cast an argument to a specific c type, provide a hint in method signature:
+
+            def fun1(a: ctypes.c_float, b: ctypes.c_float = 2.0):
+            ...
+
+        To pass an argument by ref, a hint must be provided and the value wrapped in AsRef:
+
+            @cc_build('''
+        int ref(int * a, int b) {
+            ...
+        }
+        ''')
+            def ref(a: ctypes.c_int, b):
+            ...
+
+            ref(AsRef(3), 4)
+
+    To pass an array argument it must be passed as an instance of a list and a type hint must be provided:
+
+    @cc_build('''
+    int arr_fun(int a[]) {
+        ...
+    }
+    ''')
+    def arr_fun(a: ctypes.c_int):
+        ...
+
+    arr_fun([1, 2, 3])
+
+    To define the function return type a hint should be applied in method signature:
+
+        def fun2(a, b) -> ctypes.c_float:
+        ...
+
+    To auto wrap a function as a C function pointer, define c types as hints:
+    
+        def cb(a: ctypes.c_int, b: ctypes.c_int) ->ctypes.c_float:
+            ...
+
+        @cc_build('''
+                float cbfun(int a, int b, float (*cb)(int, int)) {
+                    ...
+                }
+                ''')
+        def cbfun(a, b, cb) -> ctypes.c_float:
+            ...
+
+        cbfun(1, 1, cb)
+    
+    """
 
     def __init__(self, code, config=None):
         self.config = config if config else CC_Config()
@@ -330,8 +349,10 @@ class CC_Builder(BaseBuilder):
                 cmd.append(src_file)
             for input in config.src_files:
                 cmd.append(input)
-            for input in config.lib_files:
+            for input in config.static_libs:
                 cmd.append(input)
+            for input in config.shared_libs:
+                cmd.append('-l'+input)
             out = subprocess.run(
                 cmd, text=True, capture_output=True, input=code, check=True)
         except subprocess.CalledProcessError as e:
@@ -350,10 +371,12 @@ class CC_Builder(BaseBuilder):
     def compile(self, fun):
         self.fun = fun
         hash = hashlib.md5(self.code.encode('utf-8')).hexdigest()
-        filename = f'{self.fun.__module__}.{self.fun.__name__}_{hash}.lib'
+        prefix = 'lib'
+        ext = '.so'
+        filename = f'{prefix}{self.fun.__module__}.{self.fun.__name__}_{hash}{ext}'
         self.so_file = self.config.create_cache_path(filename)
         logger.debug(f'Shared object file: {self.so_file}')
-        for existing in glob.glob(f'{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_*.lib'):
+        for existing in glob.glob(f'{prefix}{self.config.cache}/{self.fun.__module__}.{self.fun.__name__}_*{ext}'):
             if existing != self.so_file:
                 logger.debug(
                     f'Removing existing shared object: {existing}')
@@ -414,10 +437,18 @@ class CC_Builder(BaseBuilder):
         if isinstance(arg, list):
             arr = annotation * len(arg)
             val = arr(*tuple([self.type_arg(v, sig, name) for v in arg]))
+        elif inspect.isfunction(arg):
+            cb_sig = inspect.signature(arg)
+            rtn = cb_sig.return_annotation if cb_sig.return_annotation != inspect._empty else None
+            all_params = [
+                cb_sig.parameters[p].annotation for p in cb_sig.parameters]
+            cb_fun = ctypes.CFUNCTYPE(
+                rtn, *all_params)
+            val=cb_fun(arg)
         else:
             val = arg.value if isinstance(arg, AsPointer) else arg
             if annotation is inspect.Parameter.empty:
-                val = val
+                val = val                
             else:
                 if isinstance(val, AsRef):
                     val = ctypes.byref(annotation(val.value))
